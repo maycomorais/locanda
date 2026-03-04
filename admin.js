@@ -1759,9 +1759,11 @@ async function salvarProduto() {
       document.querySelectorAll('.pizza-tamanho-row').forEach((row) => {
         const pTrad = parseFloat(row.querySelector('[data-f="preco_tradicional"]')?.value) || 0;
         const pEsp = parseFloat(row.querySelector('[data-f="preco_especial"]')?.value) || 0;
+        const pPrem = parseFloat(row.querySelector('[data-f="Premium"]')?.value) || 0;
         const pDoce = parseFloat(row.querySelector('[data-f="preco_doce"]')?.value) || 0;
         const pBordaRow      = parseFloat(row.querySelector('[data-f="borda_preco"]')?.value) || 0;
         const pBordaEspRow   = parseFloat(row.querySelector('[data-f="borda_preco_especial"]')?.value) || 0;
+        const pBordaPremRow   = parseFloat(row.querySelector('[data-f="borda_preco_premium"]')?.value) || 0;
         const pBordaDoceRow  = parseFloat(row.querySelector('[data-f="borda_preco_doce"]')?.value) || 0;
         const maxSabRow = parseInt(row.querySelector('[data-f="max_sabores"]')?.value) || null;
         tamanhos.push({
@@ -1770,9 +1772,11 @@ async function salvarProduto() {
           cm: parseInt(row.querySelector('[data-f="cm"]').value) || 0,
           preco_tradicional: pTrad,
           preco_especial: pEsp,
+          preco_premium: pEsp,
           preco_doce: pDoce,
           borda_preco: pBordaRow,
           borda_preco_especial: pBordaEspRow || null,
+          borda_preco_premium: pBordaPremRow || null,
           borda_preco_doce: pBordaDoceRow || null,
           max_sabores: maxSabRow,
           preco: Math.min(...[pTrad, pEsp, pDoce].filter((v) => v > 0)) || pTrad,
@@ -2176,6 +2180,7 @@ function addPizzaBorda(dados = {}) {
       <select data-f="btipo" class="form-control">
         <option value="Tradicional" ${tipoVal === 'Tradicional' ? 'selected' : ''}>🍕 Tradicional</option>
         <option value="Especial" ${tipoVal === 'Especial' ? 'selected' : ''}>⭐ Especial</option>
+        <option value="Premium" ${tipoVal === 'Premium' ? 'selected' : ''}>🏆 Premium</option>
         <option value="Doce" ${tipoVal === 'Doce' ? 'selected' : ''}>🍫 Doce</option>
       </select>
     </div>
@@ -2191,6 +2196,7 @@ function addPizzaTamanho(dados = {}) {
   // Retrocompatibilidade: se veio só `preco` (formato antigo), usa como preco_tradicional
   const pTrad = dados.preco_tradicional ?? dados.preco ?? '';
   const pEsp = dados.preco_especial ?? '';
+  const pPrem = dados.preco_premium ?? '';
   const pDoce = dados.preco_doce ?? '';
   const pBorda = dados.borda_preco ?? '';
   const maxSab = dados.max_sabores ?? '';
@@ -2208,11 +2214,13 @@ function addPizzaTamanho(dados = {}) {
     <div class="pizza-tamanho-precos">
       <div><label>🍕 Tradicional (Gs)</label><input data-f="preco_tradicional" type="number" class="form-control" value="${pTrad}" placeholder="60000"></div>
       <div><label>⭐ Especial (Gs)</label><input data-f="preco_especial" type="number" class="form-control" value="${pEsp}" placeholder="65000"></div>
+      <div><label>🏆 Premium (Gs)</label><input data-f="preco_premium" type="number" class="form-control" value="${pPrem}" placeholder="65000"></div>
       <div><label>🍫 Doce (Gs)</label><input data-f="preco_doce" type="number" class="form-control" value="${pDoce}" placeholder="60000"></div>
     </div>
     <div class="pizza-tamanho-precos" style="margin-top:6px;padding-top:8px;border-top:1px dashed #e0e0e0">
       <div><label>🧀 Borda Trad. (Gs)</label><input data-f="borda_preco" type="number" class="form-control" value="${pBorda}" placeholder="10000"></div>
       <div><label>🧀 Borda Esp. (Gs)</label><input data-f="borda_preco_especial" type="number" class="form-control" value="${dados.borda_preco_especial ?? ''}" placeholder="12000"></div>
+      <div><label>🧀 Borda Prem. (Gs)</label><input data-f="borda_preco_Premium" type="number" class="form-control" value="${dados.borda_preco_Premium ?? ''}" placeholder="12000"></div>
       <div><label>🧀 Borda Doce (Gs)</label><input data-f="borda_preco_doce" type="number" class="form-control" value="${dados.borda_preco_doce ?? ''}" placeholder="12000"></div>
     </div>
 
@@ -2255,6 +2263,7 @@ function addPizzaSabor(dados = {}) {
       <select data-f="stipo" class="form-control pizza-sabor-tipo">
         <option value="Tradicional" ${!dados.tipo || dados.tipo === 'Tradicional' || dados.tipo === 'Salgada' ? 'selected' : ''}>🍕 Tradicional</option>
         <option value="Especial" ${dados.tipo === 'Especial' ? 'selected' : ''}>⭐ Especial</option>
+        <option value="Premium" ${dados.tipo === 'Premium' ? 'selected' : ''}>🏆 Premium</option>
         <option value="Doce" ${dados.tipo === 'Doce' ? 'selected' : ''}>🍫 Doce</option>
       </select>
       <button class="btn btn-sm btn-danger" onclick="this.closest('.pizza-sabor-row').remove()" title="Remover">✕</button>
@@ -5778,7 +5787,7 @@ function renderizarGrafico(labels, data, cores) {
           },
         },
       },
-    },
+    },E
   });
 }
 
