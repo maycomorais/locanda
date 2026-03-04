@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imprimir Comanda - Locanda Pizzeria</title>
+    <style>
+        /* ────────────────────────────────────────────
+           TELA: preview antes de imprimir
+        ──────────────────────────────────────────── */
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: #d0d0d0;
+            padding: 20px;
+            font-size: 15px;
+        }
+
+        .ticket {
+            background: #fff;
+            max-width: 360px;
+            margin: 0 auto;
+            padding: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        h3, p { margin: 0; padding: 0; }
+
+        h3 {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+
+        .centered        { text-align: center; font-size: 14px; margin-bottom: 3px; }
+        .num-pedido      { font-weight: bold; font-size: 18px; }
+        .tipo-entrega-tx { font-weight: bold; font-size: 18px; text-align: center; margin: 6px 0; }
+
+        hr { border: none; border-top: 2px dashed #000; margin: 7px 0; }
+
+        .info-group        { margin-bottom: 5px; font-size: 14px; line-height: 1.65; }
+        .info-group strong { display: inline-block; width: 60px; font-size: 13px; }
+
+        #endereco-box { font-size: 14px; margin-bottom: 5px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 15px; }
+        th {
+            text-align: left;
+            border-bottom: 2px dashed #000;
+            font-size: 13px;
+            padding-bottom: 3px;
+            font-weight: bold;
+        }
+        td { vertical-align: top; padding: 4px 0; font-weight: 600; }
+        td small { font-size: 12px; font-weight: normal; }
+
+        .totals       { text-align: right; font-size: 14px; margin-top: 8px; line-height: 1.8; }
+        .total-final  { font-size: 22px; font-weight: bold; margin-top: 6px; }
+
+        #forma-pag { font-size: 14px; font-weight: bold; }
+        #obs-pag   { font-size: 13px; margin-top: 3px; font-style: italic; line-height: 1.5; }
+
+        .rodape { text-align: center; font-size: 13px; margin-top: 4px; }
+
+        .btn-print {
+            display: block; width: 100%; padding: 16px;
+            background: #1a7a2e; color: white; border: none;
+            font-size: 17px; font-weight: bold;
+            cursor: pointer; margin-top: 20px; border-radius: 8px;
+        }
+
+        /* ────────────────────────────────────────────
+           IMPRESSÃO — Otimizado para rolos térmicos
+           40mm (área útil ~32mm) e 58mm (área útil ~48mm)
+           Fontes grandes e negrito para boa leitura
+        ──────────────────────────────────────────── */
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+                margin: 0;
+                font-size: 20px;          /* base grande para térmica */
+                font-weight: bold;
+                -webkit-print-color-adjust: exact;
+            }
+            .btn-print { display: none; }
+            .ticket {
+                box-shadow: none;
+                max-width: 100%;
+                width: 100%;
+                margin: 0;
+                padding: 2px;
+            }
+            @page {
+                margin: 2mm;
+                size: 58mm auto; /* ajusta para 58mm; a 40mm reduzirá automaticamente */
+            }
+
+            /* Títulos e cabeçalho */
+            h3 {
+                font-size: 30px;
+                font-weight: bold;
+                letter-spacing: 2px;
+            }
+            .num-pedido      { font-size: 26px; font-weight: bold; }
+            .centered        { font-size: 18px; }
+            .tipo-entrega-tx { font-size: 26px; font-weight: bold; }
+
+            /* Info do pedido */
+            .info-group        { font-size: 18px; font-weight: bold; line-height: 1.8; }
+            .info-group strong { font-size: 17px; width: 56px; }
+            #endereco-box      { font-size: 18px; font-weight: bold; }
+
+            /* Itens */
+            table  { font-size: 20px; }
+            th     { font-size: 18px; font-weight: bold; border-bottom-width: 2px; }
+            td     { padding: 5px 0; font-weight: bold; }
+            td small { font-size: 16px; font-weight: normal; }
+
+            /* Observações e variação */
+            td small[style*="color:#555"],  /* variação */
+            td small[style*="color:#2980b9"] /* preparo */ {
+                font-size: 16px;
+                font-weight: bold;
+            }
+            td strong[style*="font-size:10px"] { /* OBS */
+                font-size: 17px !important;
+                font-weight: bold;
+            }
+
+            /* Totais */
+            .totals      { font-size: 18px; font-weight: bold; line-height: 2; }
+            .total-final { font-size: 30px; font-weight: bold; }
+
+            /* Pagamento */
+            #forma-pag { font-size: 18px; font-weight: bold; }
+            #obs-pag   { font-size: 17px; font-weight: bold; }
+
+            /* Rodapé */
+            .rodape { font-size: 16px; font-weight: bold; }
+
+            hr { border-top: 2px dashed #000; }
+        }
+    </style>
+<base target="_blank">
+<base target="_blank">
+</head>
+<body>
+
+    <div class="ticket">
+        <h3>CANTINHO BR</h3>
+        <p class="centered num-pedido">PEDIDO #<span id="id-pedido">---</span></p>
+        <p class="centered">Tel: +595 982 808985</p>
+        <hr>
+
+        <div class="info-group">
+            <strong>Data:</strong> <span id="data-hora">---</span><br>
+            <strong>Cliente:</strong> <span id="nome">---</span><br>
+            <strong>Tel:</strong> <span id="tel">---</span>
+        </div>
+        <hr>
+
+        <div class="tipo-entrega-tx"><span id="tipo-entrega">---</span></div>
+        <div id="endereco-box" style="display:none;">
+            Ref: <span id="ref-entrega">---</span>
+        </div>
+        <hr>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:14%">Qtd</th>
+                    <th>Item</th>
+                    <th style="text-align:right">Total</th>
+                </tr>
+            </thead>
+            <tbody id="lista-itens">
+                <tr><td colspan="3" style="text-align:center;padding:10px;">Carregando...</td></tr>
+            </tbody>
+        </table>
+        <hr>
+
+        <div class="totals">
+            Subtotal: <span id="subtotal">Gs 0</span><br>
+            Frete: <span id="frete">Gs 0</span><br>
+            <div class="total-final">TOTAL: <span id="total-geral">Gs 0</span></div>
+        </div>
+        <hr>
+
+        <div class="info-group">
+            <strong>Pagto:</strong> <span id="forma-pag">---</span>
+            <div id="obs-pag"></div>
+        </div>
+
+        <div id="box-factura" style="display:none; margin-top:10px; border:1px dashed #000; padding:6px;">
+            <strong>DADOS FACTURA:</strong><br>
+            RUC: <span id="ruc">---</span><br>
+            Razão: <span id="razao">---</span>
+        </div>
+
+        <br>
+        <p class="rodape">*** OBRIGADO PELA PREFERÊNCIA ***</p>
+    </div>
+
+    <button class="btn-print" onclick="window.print()">🖨️ IMPRIMIR PEDIDO</button>
+
+    <script>
+        window.onload = function() {
+            const params = new URLSearchParams(window.location.search);
+            const codigoBase64 = params.get('d');
+            
+            if(!codigoBase64) {
+                document.body.innerHTML = "<h3 style='text-align:center; color:red; margin-top:50px'>Erro: Link inválido ou incompleto.</h3>";
+                return;
+            }
+
+            try {
+                // Decodifica Base64 URL-safe -> JSON
+                // Reverte substituições: - volta para +, _ volta para /
+                const base64Normal = codigoBase64
+                    .replace(/-/g, '+')
+                    .replace(/_/g, '/');
+                // Adiciona padding = se necessário
+                const pad = base64Normal.length % 4;
+                const base64Padded = pad ? base64Normal + '='.repeat(4 - pad) : base64Normal;
+                
+                const jsonString = decodeURIComponent(escape(atob(base64Padded)));
+                const pedido = JSON.parse(jsonString);
+                
+                console.log('Pedido recebido:', pedido);
+
+                // ID DO PEDIDO
+                document.getElementById('id-pedido').innerText = pedido.id || 'S/N';
+
+                // 1. Cabeçalho
+                document.getElementById('data-hora').innerText = pedido.data || new Date().toLocaleString('pt-BR');
+                document.getElementById('nome').innerText = pedido.cliente?.nome || 'Cliente';
+                document.getElementById('tel').innerText = pedido.cliente?.tel || 'S/N';
+
+                // 2. Entrega
+                const tipoEntrega = pedido.entrega?.tipo || 'delivery';
+                document.getElementById('tipo-entrega').innerText = tipoEntrega.toUpperCase();
+                
+                if(tipoEntrega === 'delivery') {
+                    document.getElementById('endereco-box').style.display = 'block';
+                    document.getElementById('ref-entrega').innerText = pedido.entrega?.ref || 'Não informado';
+                }
+
+                // 3. Itens 
+                const tbody = document.getElementById('lista-itens');
+                tbody.innerHTML = '';
+                
+                console.log('🍣 Itens recebidos:', JSON.stringify(pedido.itens));
+                
+                const itens = Array.isArray(pedido.itens) ? pedido.itens : [];
+                if (itens.length > 0) {
+                    itens.forEach((item, idx) => {
+                        console.log('Item '+idx+':', JSON.stringify(item));
+                        const tr = document.createElement('tr');
+                        
+                        // Extrai quantidade: aceita q, qtd, quantidade — fallback 1
+                        const quantidade = (item.q !== undefined ? item.q : null) 
+                                        || (item.qtd !== undefined ? item.qtd : null)
+                                        || (item.quantidade !== undefined ? item.quantidade : null)
+                                        || 1;
+                        
+                        // Extrai nome
+                        const nomeItem = item.n || item.nome || item.name || ('Item '+(idx+1));
+                        
+                        // Extrai preço — usa parseFloat para garantir número
+                        const preco = parseFloat(item.p !== undefined ? item.p : (item.preco !== undefined ? item.preco : (item.valor || 0))) || 0;
+                        
+                        const montagem = item.m || item.montagem || [];
+                        const observacao = item.o || item.obs || item.observacao || '';
+                        const tipo = item.t || item.tipo || '';    // variação (ex: "Combo Grande")
+                        const preparo = item.pr || item.preparo || ''; // preparo (ex: "Flambado")
+                        
+                        let detalhes = '';
+                        // Mostra variação apenas se for diferente do nome do item (evita duplicação)
+                        if (tipo && tipo !== nomeItem && tipo !== 'Padrão' && tipo !== 'Montado') {
+                          detalhes += '<br><small style="color:#555">▸ '+tipo+'</small>';
+                        }
+                        if (preparo) detalhes += '<br><small style="color:#2980b9">🍳 '+preparo+'</small>';
+                        if (Array.isArray(montagem) && montagem.length > 0) {
+                          montagem.forEach(linha => {
+                            const idx = linha.indexOf(':');
+                            if (idx > 0) {
+                              detalhes += '<br><small style="font-size:10px"><strong>'+linha.slice(0,idx)+':</strong> '+linha.slice(idx+1).trim()+'</small>';
+                            } else {
+                              detalhes += '<br><small style="font-style:italic; font-size:10px">· '+linha+'</small>';
+                            }
+                          });
+                        }
+                        if (observacao) detalhes += '<br><strong style="font-size:10px">OBS: '+observacao+'</strong>';
+                        
+                        const total = (preco * quantidade).toLocaleString('es-PY');
+                        tr.innerHTML = '<td style="vertical-align:top">'+quantidade+'x</td><td>'+nomeItem+detalhes+'</td><td style="text-align:right">Gs '+total+'</td>';
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#e74c3c;">Nenhum item encontrado</td></tr>';
+                }
+
+                // 4. Totais
+                const valores = pedido.valores || {};
+                document.getElementById('subtotal').innerText = `Gs ${(valores.sub || valores.subtotal || 0).toLocaleString('es-PY')}`;
+                document.getElementById('frete').innerText = `Gs ${(valores.frete || valores.frete_cobrado_cliente || 0).toLocaleString('es-PY')}`;
+                document.getElementById('total-geral').innerText = `Gs ${(valores.total || valores.total_geral || 0).toLocaleString('es-PY')}`;
+
+                // 5. Pagamento
+                const pagamento = pedido.pagamento || {};
+                const metodoPag = pagamento.metodo || pagamento.forma_pagamento || 'Não informado';
+                const obsPagRaw = pagamento.obs   || pagamento.obs_pagamento   || '';
+
+                if (metodoPag === 'Multipagamento') {
+                    document.getElementById('forma-pag').innerText = '🔀 Pagamento dividido:';
+                    try {
+                        const partes = JSON.parse(obsPagRaw);
+                        document.getElementById('obs-pag').innerHTML = partes.map((p, i) => {
+                            let linha = `${i + 1}. ${p.metodo}: Gs ${parseFloat(p.valor).toLocaleString('es-PY')}`;
+                            if (p.troco) linha += ` (Troco p/ ${p.troco})`;
+                            return linha;
+                        }).join('<br>');
+                    } catch(e) {
+                        document.getElementById('obs-pag').innerText = obsPagRaw;
+                    }
+                } else {
+                    document.getElementById('forma-pag').innerText = metodoPag;
+                    document.getElementById('obs-pag').innerText = obsPagRaw;
+                }
+
+                // 6. Factura
+                if(pedido.factura && (pedido.factura.ruc || pedido.factura.razao)) {
+                    document.getElementById('box-factura').style.display = 'block';
+                    document.getElementById('ruc').innerText = pedido.factura.ruc || 'S/N';
+                    document.getElementById('razao').innerText = pedido.factura.razao || 'S/N';
+                }
+                
+                setTimeout(() => window.print(), 800);
+
+            } catch (e) {
+                console.error('Erro ao processar pedido:', e);
+                document.body.innerHTML = `
+                    <h3 style='text-align:center; color:red; margin-top:50px'>
+                        Erro ao ler o pedido.<br><br>
+                        <small>O link pode estar incompleto ou corrompido.</small><br><br>
+                        <button onclick="window.close()" style="padding:10px 20px; background:#1a7a2e; color:white; border:none; border-radius:5px; cursor:pointer;">
+                            Fechar
+                        </button>
+                    </h3>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
