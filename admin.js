@@ -4333,6 +4333,27 @@ async function logout() {
 // 9. VENDA BALCÃO (VISUAL / NOVO)
 // =========================================
 let carrinhoPDV = [];
+let _pdvTipoEntrega = 'local'; // 'local' | 'levar' | 'delivery'
+
+function pdvSelecionarTipo(tipo) {
+  _pdvTipoEntrega = tipo;
+  ['local', 'levar', 'delivery'].forEach(t => {
+    const btn = document.getElementById(`pdv-tipo-${t}`);
+    if (btn) btn.classList.toggle('pdv-tipo-ativo', t === tipo);
+  });
+  const mesaCol = document.getElementById('pdv-mesa-col');
+  const deliveryRow = document.getElementById('pdv-delivery-row');
+  if (tipo === 'local') {
+    if (mesaCol) mesaCol.style.display = '';
+    if (deliveryRow) deliveryRow.style.display = 'none';
+  } else if (tipo === 'levar') {
+    if (mesaCol) mesaCol.style.display = 'none';
+    if (deliveryRow) deliveryRow.style.display = 'none';
+  } else if (tipo === 'delivery') {
+    if (mesaCol) mesaCol.style.display = 'none';
+    if (deliveryRow) deliveryRow.style.display = 'block';
+  }
+}
 let produtosCachePDV = [];
 // Cotação carregada das configurações (fallback 1100)
 let _cotacaoPDV = 1100;
@@ -4489,22 +4510,16 @@ let _extrasGlobaisCache = null;
 async function _getExtrasGlobais() {
   if (_extrasGlobaisCache !== null) return _extrasGlobaisCache;
   // Tenta carregar das configurações (campo extras_globais no Supabase)
-  const { data } = await supa
-    .from('configuracoes')
-    .select('extras_globais')
-    .single()
-    .catch(() => ({ data: null }));
+  let data = null;
+  try {
+    const res = await supa.from('configuracoes').select('extras_globais').single();
+    data = res.data;
+  } catch (_) { data = null; }
   if (data && Array.isArray(data.extras_globais) && data.extras_globais.length > 0) {
     _extrasGlobaisCache = data.extras_globais;
   } else {
-    // Fallback com os extras da foto
-    _extrasGlobaisCache = [
-      { nome: 'Shoyu', preco: 2000 },
-      { nome: 'Taré (Teriaki)', preco: 3000 },
-      { nome: 'Sunomono', preco: 2000 },
-      { nome: 'Jengibre', preco: 2000 },
-      { nome: 'Wasabi', preco: 2000 },
-    ];
+    // Sem extras globais configurados
+    _extrasGlobaisCache = [];
   }
   return _extrasGlobaisCache;
 }
@@ -4515,29 +4530,386 @@ function _deveMostrarExtrasGlobais(produto) {
 }
 
 function adicionarItemPDV(p) {
-  // Verifica se produto tem variações
   const cfg = p.montagem_config;
-  const tipo = cfg && !Array.isArray(cfg) && cfg.__tipo ? cfg.__tipo : null;
+  const tipo = cfg && !Array.isArray(cfg) && cfg.__tipo ? cfg.__tipo : (p.e_montavel ? 'montavel' : null);
+
   if (tipo === 'variacoes' && cfg.variacoes && cfg.variacoes.length > 0) {
     const variacoesAtivas = cfg.variacoes.filter((v) => v.ativo !== false);
-    if (variacoesAtivas.length === 0) {
-      alert('⏸️ Todas as variações deste produto estão pausadas.');
-      return;
-    }
+    if (variacoesAtivas.length === 0) { alert('⏸️ Todas as variações deste produto estão pausadas.'); return; }
     _mostrarModalVariacaoPDV(p, variacoesAtivas);
+    return;
+  }
+  if (tipo === 'pizza' || tipo === 'shake' || tipo === 'montavel' || tipo === 'almoco') {
+    _mostrarModalComplexoPDV(p, tipo, cfg);
     return;
   }
   const existe = carrinhoPDV.find((i) => i.id === p.id && !i.variacao);
   if (existe) existe.qtd++;
   else carrinhoPDV.push({ ...p, qtd: 1 });
   atualizarCarrinhoPDV();
-
-  // Upsell de extras globais (exceto bebidas e extras)
   if (_deveMostrarExtrasGlobais(p)) {
     _getExtrasGlobais().then((extras) => {
       if (extras && extras.length > 0) _mostrarUpsellExtrasPDV(p, extras);
     });
   }
+}
+
+// ─── Modal completo PDV — Pizza / Shake / Montável / Almoço ───────────────────
+let _pdvModalState = {};
+
+function _mostrarModalComplexoPDV(produto, tipo, cfg) {
+  document.getElementById('pdv-complex-modal')?.remove();
+  const cacheKey = 'pdvc_' + (produto.id || Date.now());
+  window._pdvProdCache[cacheKey] = produto;
+  _pdvModalState = {
+    tipo, cfg, produto, cacheKey,
+    pizza: { tamanhoSelecionado: null, numSabores: null, sabores: [], bordaConfig: null },
+    shake: { tamanhoSelecionado: null, saborSelecionado: null },
+    montavel: {}, almoco: null, qtd: 1,
+  };
+
+  const overlay = document.createElement('div');
+  overlay.id = 'pdv-complex-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:12px';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'background:#fff;border-radius:16px;width:100%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);overflow:hidden';
+
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #f0f0f0;flex-shrink:0';
+  header.innerHTML = `<div><div style="font-weight:700;font-size:1rem;color:#222">${produto.nome}</div><div style="font-size:0.8rem;color:#888;margin-top:2px">${_pdvTipoLabel(tipo)}</div></div><button style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#aaa;padding:4px" onclick="document.getElementById('pdv-complex-modal')?.remove()">✕</button>`;
+  modal.appendChild(header);
+
+  const body = document.createElement('div');
+  body.id = 'pdv-complex-body';
+  body.style.cssText = 'overflow-y:auto;flex:1;padding:16px 20px';
+
+  if (tipo === 'pizza') _pdvRenderPizza(body);
+  else if (tipo === 'shake') _pdvRenderShake(body);
+  else if (tipo === 'montavel') _pdvRenderMontavel(body);
+  else if (tipo === 'almoco') _pdvRenderAlmoco(body);
+
+  // Adicionais do produto
+  const extrasProds = cfg && cfg.extras && cfg.extras.length > 0 ? cfg.extras : null;
+  if (extrasProds) _pdvRenderExtras(body, extrasProds);
+
+  // Adicionais globais
+  if (_deveMostrarExtrasGlobais(produto)) {
+    _getExtrasGlobais().then((globais) => {
+      if (globais && globais.length > 0) {
+        const bodyEl = document.getElementById('pdv-complex-body');
+        if (bodyEl) _pdvRenderExtrasGlobais(bodyEl, globais);
+      }
+    });
+  }
+
+  modal.appendChild(body);
+
+  const footer = document.createElement('div');
+  footer.style.cssText = 'padding:14px 20px;border-top:1px solid #f0f0f0;flex-shrink:0;background:#fafafa';
+  footer.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <label style="font-size:0.85rem;color:#666;font-weight:600">Quantidade:</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button type="button" onclick="_pdvModalQtd(-1)" style="width:30px;height:30px;border-radius:50%;border:1px solid #ddd;background:#fff;font-size:1.1rem;cursor:pointer;line-height:1">−</button>
+        <span id="pdv-modal-qty" style="font-weight:700;font-size:1rem;min-width:20px;text-align:center">1</span>
+        <button type="button" onclick="_pdvModalQtd(1)" style="width:30px;height:30px;border-radius:50%;border:1px solid #ddd;background:#fff;font-size:1.1rem;cursor:pointer;line-height:1">+</button>
+      </div>
+      <span id="pdv-modal-preco" style="margin-left:auto;font-weight:700;font-size:1.05rem;color:var(--primary)">Gs ${(produto.preco||0).toLocaleString('es-PY')}</span>
+    </div>
+    <div style="margin-bottom:8px">
+      <input id="pdv-modal-obs" type="text" placeholder="Observação (opcional)" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;box-sizing:border-box">
+    </div>
+    <button type="button" onclick="_pdvModalConfirmar()" style="width:100%;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer">
+      ✅ Adicionar ao Carrinho
+    </button>`;
+  modal.appendChild(footer);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
+function _pdvTipoLabel(tipo) {
+  const labels = { pizza: '🍕 Escolha tamanho e sabores', shake: '🥤 Escolha tamanho e sabor', montavel: '🛠️ Monte seu pedido', almoco: '🍽️ Escolha o prato' };
+  return labels[tipo] || '';
+}
+
+function _pdvModalQtd(delta) {
+  _pdvModalState.qtd = Math.max(1, (_pdvModalState.qtd || 1) + delta);
+  document.getElementById('pdv-modal-qty').textContent = _pdvModalState.qtd;
+  _pdvModalAtualizarPreco();
+}
+
+function _pdvModalAtualizarPreco() {
+  const st = _pdvModalState;
+  let preco = 0;
+  if (st.tipo === 'pizza') {
+    const tamPreco = st.pizza.tamanhoSelecionado?.preco || 0;
+    const saborExtra = (st.pizza.sabores || []).filter(Boolean).reduce((acc, s) => Math.max(acc, s.preco || 0), 0);
+    preco = tamPreco + saborExtra + (st.pizza.bordaConfig?.preco || 0);
+  } else if (st.tipo === 'shake') {
+    preco = (st.shake.tamanhoSelecionado?.preco || 0) + (st.shake.saborSelecionado?.preco || 0);
+  } else if (st.tipo === 'almoco') {
+    preco = st.almoco?.preco || st.produto.preco || 0;
+  } else {
+    preco = st.produto.preco || 0;
+  }
+  if (preco === 0) preco = st.produto.preco || 0;
+  document.querySelectorAll('#pdv-complex-modal .pdvc-extra-check:checked').forEach(cb => { preco += parseInt(cb.dataset.preco || 0); });
+  const el = document.getElementById('pdv-modal-preco');
+  if (el) el.textContent = 'Gs ' + (preco * (st.qtd || 1)).toLocaleString('es-PY');
+  st._precoAtual = preco;
+}
+
+// ── Pizza ──────────────────────────────────────────────────────────────────────
+function _pdvRenderPizza(container) {
+  const cfg = _pdvModalState.cfg;
+  if (!cfg || !cfg.pizza) { container.innerHTML = '<p style="color:#aaa">Configuração de pizza não encontrada.</p>'; return; }
+  const p = cfg.pizza;
+  _pdvModalState.pizza = { p, tamanhoSelecionado: null, numSabores: null, sabores: [], bordaConfig: null };
+
+  const sec1 = document.createElement('div'); sec1.className = 'pdvc-step';
+  sec1.innerHTML = `<div class="pdvc-step-title"><span class="pdvc-step-num">1</span> Escolha o tamanho</div><div class="pdvc-size-grid" id="pdvc-size-grid"></div>`;
+  container.appendChild(sec1);
+  const sizeGrid = sec1.querySelector('#pdvc-size-grid');
+  (p.tamanhos || []).forEach((tam) => {
+    const card = document.createElement('button'); card.type = 'button'; card.className = 'pdvc-size-card';
+    card.innerHTML = `<div class="pdvc-size-name">${tam.nome}</div><div class="pdvc-size-info">${tam.fatias||''} fatias · ⌀${tam.cm||''}cm</div><div class="pdvc-size-price">Gs ${(tam.preco||0).toLocaleString('es-PY')}</div>`;
+    card.onclick = () => {
+      sizeGrid.querySelectorAll('.pdvc-size-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      _pdvModalState.pizza.tamanhoSelecionado = tam;
+      _pdvModalState.pizza.numSabores = null; _pdvModalState.pizza.sabores = []; _pdvModalState.pizza.bordaConfig = null;
+      _pdvPizzaPasso2(p); _pdvModalAtualizarPreco();
+    };
+    sizeGrid.appendChild(card);
+  });
+  const p2 = document.createElement('div'); p2.id = 'pdvc-passo2'; p2.style.display = 'none'; container.appendChild(p2);
+  const p3 = document.createElement('div'); p3.id = 'pdvc-passo3'; p3.style.display = 'none'; container.appendChild(p3);
+  const p4 = document.createElement('div'); p4.id = 'pdvc-passo4'; p4.style.display = 'none'; container.appendChild(p4);
+}
+
+function _pdvPizzaPasso2(p) {
+  const passo2 = document.getElementById('pdvc-passo2');
+  const passo3 = document.getElementById('pdvc-passo3');
+  const passo4 = document.getElementById('pdvc-passo4');
+  if (!passo2) return;
+  if (passo3) { passo3.innerHTML = ''; passo3.style.display = 'none'; }
+  if (passo4) { passo4.innerHTML = ''; passo4.style.display = 'none'; }
+  const maxLoja = _pdvModalState.pizza.tamanhoSelecionado?.max_sabores || p.max_sabores || 1;
+  const labels = { 1: '🍕 Inteira', 2: '½ a ½', 3: '3 Sabores', 4: '4 Sabores' };
+  passo2.innerHTML = `<div class="pdvc-step"><div class="pdvc-step-title"><span class="pdvc-step-num">2</span> Quantos sabores?</div><div class="pdvc-divisao-grid">${Array.from({length:maxLoja},(_,i)=>i+1).map(n=>`<button type="button" class="pdvc-divisao-btn" onclick="_pdvPizzaSelecionarDivisao(${n}, this)">${labels[n]||n+' Sabores'}</button>`).join('')}</div></div>`;
+  passo2.style.display = 'block';
+  setTimeout(() => passo2.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+}
+
+function _pdvPizzaSelecionarDivisao(n, el) {
+  document.querySelectorAll('#pdvc-passo2 .pdvc-divisao-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  _pdvModalState.pizza.numSabores = n; _pdvModalState.pizza.sabores = new Array(n).fill(null);
+  _pdvPizzaPasso3(n);
+}
+
+function _pdvPizzaPasso3(n) {
+  const passo3 = document.getElementById('pdvc-passo3');
+  const passo4 = document.getElementById('pdvc-passo4');
+  if (!passo3) return;
+  if (passo4) { passo4.innerHTML = ''; passo4.style.display = 'none'; }
+  const p = _pdvModalState.pizza.p;
+  let html = `<div class="pdvc-step"><div class="pdvc-step-title"><span class="pdvc-step-num">3</span> Escolha ${n===1?'o sabor':`os ${n} sabores`}</div>`;
+  for (let slot = 0; slot < n; slot++) {
+    html += n > 1 ? `<div class="pdvc-slot-header">${slot+1}º sabor</div>` : '';
+    html += `<div class="pdvc-sabores-grid" id="pdvc-slot-${slot}">`;
+    (p.sabores||[]).forEach(s => {
+      const sfEsc = (s.nome||'').replace(/'/g,"\\'");
+      const imgHtml = s.img ? `<img src="${s.img}" class="pdvc-sabor-img" onerror="this.style.display='none'">` : `<span style="font-size:1.5rem">🍕</span>`;
+      html += `<button type="button" class="pdvc-sabor-btn" data-slot="${slot}" onclick="_pdvPizzaSelecionarSabor(${slot},'${sfEsc}',${s.preco||0},this)">${imgHtml}<div><div class="pdvc-sabor-nome">${s.nome}</div>${s.desc?`<div class="pdvc-sabor-desc">${s.desc}</div>`:''} ${s.preco?`<div class="pdvc-sabor-preco">+ Gs ${(s.preco).toLocaleString('es-PY')}</div>`:''}</div></button>`;
+    });
+    html += `</div>`;
+  }
+  html += `</div>`;
+  passo3.innerHTML = html; passo3.style.display = 'block';
+  setTimeout(() => passo3.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+}
+
+function _pdvPizzaSelecionarSabor(slot, nome, preco, el) {
+  const lista = document.getElementById(`pdvc-slot-${slot}`);
+  if (lista) lista.querySelectorAll('.pdvc-sabor-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  _pdvModalState.pizza.sabores[slot] = { nome, preco };
+  _pdvModalAtualizarPreco();
+  const n = _pdvModalState.pizza.numSabores || 1;
+  if ((_pdvModalState.pizza.sabores||[]).filter(Boolean).length >= n) _pdvPizzaPasso4();
+}
+
+function _pdvPizzaPasso4() {
+  const passo4 = document.getElementById('pdvc-passo4'); if (!passo4) return;
+  const p = _pdvModalState.pizza.p; const tam = _pdvModalState.pizza.tamanhoSelecionado || {};
+  function precoBordaPorTipo(tipo) {
+    const t = (tipo||'Tradicional').toLowerCase();
+    if (t==='especial' && tam.borda_preco_especial>0) return tam.borda_preco_especial;
+    if (t==='doce' && tam.borda_preco_doce>0) return tam.borda_preco_doce;
+    return tam.borda_preco || 0;
+  }
+  const bordasOpcoes = p.bordas && p.bordas.length > 0 ? p.bordas.map(b=>({nome:b.nome,tipo:b.tipo||'Tradicional',preco:precoBordaPorTipo(b.tipo)})) : p.tem_borda ? [{nome:'Borda Recheada',tipo:'Tradicional',preco:tam.borda_preco||p.borda_preco||0}] : [];
+  if (bordasOpcoes.length === 0) return;
+  passo4.innerHTML = `<div class="pdvc-step"><div class="pdvc-step-title"><span class="pdvc-step-num">4</span> Borda recheada?</div><div class="pdvc-borda-grid"><button type="button" class="pdvc-borda-btn selected" id="pdvc-borda-nao" onclick="_pdvPizzaSelecionarBorda(null,0,this)">Sem borda</button>${bordasOpcoes.map(b=>`<button type="button" class="pdvc-borda-btn" onclick="_pdvPizzaSelecionarBorda('${(b.nome).replace(/'/g,"\\'")}',${b.preco||0},this)">🧀 ${b.nome} <span style="font-size:0.75rem;opacity:0.8">+Gs ${(b.preco||0).toLocaleString('es-PY')}</span></button>`).join('')}</div></div>`;
+  passo4.style.display = 'block';
+  setTimeout(() => passo4.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
+}
+
+function _pdvPizzaSelecionarBorda(nome, preco, el) {
+  document.querySelectorAll('#pdvc-passo4 .pdvc-borda-btn').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  _pdvModalState.pizza.bordaConfig = nome ? { nome, preco } : null;
+  _pdvModalAtualizarPreco();
+}
+
+// ── Shake ──────────────────────────────────────────────────────────────────────
+function _pdvRenderShake(container) {
+  const cfg = _pdvModalState.cfg; const shk = (cfg && cfg.shake) ? cfg.shake : cfg || {};
+  const sec1 = document.createElement('div'); sec1.className = 'pdvc-step';
+  sec1.innerHTML = `<div class="pdvc-step-title"><span class="pdvc-step-num">1</span> Escolha o tamanho</div><div class="pdvc-size-grid" id="pdvc-shk-size"></div>`;
+  container.appendChild(sec1);
+  const sg = sec1.querySelector('#pdvc-shk-size');
+  (shk.tamanhos||[]).forEach(tam => {
+    const card = document.createElement('button'); card.type='button'; card.className='pdvc-size-card';
+    card.innerHTML = `<div class="pdvc-size-name">${tam.nome}</div>${tam.ml?`<div class="pdvc-size-info">${tam.ml}ml</div>`:''}<div class="pdvc-size-price">Gs ${(tam.preco||0).toLocaleString('es-PY')}</div>`;
+    card.onclick = () => { sg.querySelectorAll('.pdvc-size-card').forEach(c=>c.classList.remove('selected')); card.classList.add('selected'); _pdvModalState.shake.tamanhoSelecionado=tam; _pdvModalAtualizarPreco(); };
+    sg.appendChild(card);
+  });
+  const sec2 = document.createElement('div'); sec2.className='pdvc-step';
+  sec2.innerHTML = `<div class="pdvc-step-title"><span class="pdvc-step-num">2</span> Escolha o sabor</div><div class="pdvc-sabores-grid" id="pdvc-shk-sabores"></div>`;
+  container.appendChild(sec2);
+  const saborGrid = sec2.querySelector('#pdvc-shk-sabores');
+  (shk.sabores||[]).forEach(s => {
+    const btn = document.createElement('button'); btn.type='button'; btn.className='pdvc-sabor-btn';
+    const imgHtml = s.img ? `<img src="${s.img}" class="pdvc-sabor-img" onerror="this.style.display='none'">` : `<span style="font-size:1.5rem">🥤</span>`;
+    btn.innerHTML = `${imgHtml}<div><div class="pdvc-sabor-nome">${s.nome}</div>${s.preco?`<div class="pdvc-sabor-preco">+ Gs ${(s.preco).toLocaleString('es-PY')}</div>`:''}</div>`;
+    btn.onclick = () => { saborGrid.querySelectorAll('.pdvc-sabor-btn').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); _pdvModalState.shake.saborSelecionado={nome:s.nome,preco:s.preco||0}; _pdvModalAtualizarPreco(); };
+    saborGrid.appendChild(btn);
+  });
+}
+
+// ── Montável ───────────────────────────────────────────────────────────────────
+function _pdvRenderMontavel(container) {
+  const cfg = _pdvModalState.cfg;
+  const etapas = Array.isArray(cfg) ? cfg : (cfg && cfg.etapas ? cfg.etapas : []);
+  _pdvModalState.montavel = {};
+  if (etapas.length === 0) { container.innerHTML = '<p style="color:#aaa;font-size:0.9rem">Este produto não tem etapas configuradas.</p>'; return; }
+  etapas.forEach((etapa, idx) => {
+    _pdvModalState.montavel[idx] = [];
+    const sec = document.createElement('div'); sec.className = 'pdvc-step';
+    const title = document.createElement('div'); title.className = 'pdvc-step-title';
+    title.innerHTML = `<span class="pdvc-step-num">${idx+1}</span> ${etapa.titulo} <span style="font-size:0.78rem;color:#aaa;font-weight:400">(máx ${etapa.max})</span>`;
+    sec.appendChild(title);
+    (etapa.itens||[]).forEach(ingrediente => {
+      const label = document.createElement('label'); label.className = 'pdvc-check-item';
+      const input = document.createElement('input'); input.type='checkbox'; input.value=ingrediente;
+      input.style.cssText='width:16px;height:16px;accent-color:var(--primary);cursor:pointer;flex-shrink:0';
+      input.onchange = () => {
+        const arr = _pdvModalState.montavel[idx];
+        if (input.checked) { if (arr.length < etapa.max) arr.push(ingrediente); else { alert(`Máximo ${etapa.max} item(ns) em "${etapa.titulo}"`); input.checked=false; } }
+        else { const i=arr.indexOf(ingrediente); if(i>-1) arr.splice(i,1); }
+      };
+      label.appendChild(input); label.appendChild(document.createTextNode(' '+ingrediente));
+      sec.appendChild(label);
+    });
+    container.appendChild(sec);
+  });
+}
+
+// ── Almoço ─────────────────────────────────────────────────────────────────────
+function _pdvRenderAlmoco(container) {
+  const cfg = _pdvModalState.cfg; const pratos = cfg && cfg.pratos ? cfg.pratos : [];
+  const sec = document.createElement('div'); sec.className='pdvc-step';
+  sec.innerHTML = `<div class="pdvc-step-title"><span class="pdvc-step-num">1</span> Escolha o prato</div>`;
+  pratos.forEach(prato => {
+    const btn = document.createElement('button'); btn.type='button'; btn.className='pdvc-prato-btn';
+    const imgHtml = prato.img ? `<img src="${prato.img}" class="pdvc-sabor-img" onerror="this.style.display='none'">` : `<span style="font-size:1.5rem">🍽️</span>`;
+    btn.innerHTML = `${imgHtml}<div><div class="pdvc-sabor-nome">${prato.nome}</div>${prato.desc?`<div class="pdvc-sabor-desc">${prato.desc}</div>`:''}<div class="pdvc-sabor-preco">Gs ${(prato.preco||_pdvModalState.produto.preco||0).toLocaleString('es-PY')}</div></div>`;
+    btn.onclick = () => { container.querySelectorAll('.pdvc-prato-btn').forEach(b=>b.classList.remove('selected')); btn.classList.add('selected'); _pdvModalState.almoco=prato; _pdvModalAtualizarPreco(); };
+    sec.appendChild(btn);
+  });
+  container.appendChild(sec);
+}
+
+// ── Extras do produto ──────────────────────────────────────────────────────────
+function _pdvRenderExtras(container, extras) {
+  const sec = document.createElement('div'); sec.className='pdvc-step'; sec.id='pdvc-extras-prod';
+  sec.innerHTML = `<div class="pdvc-step-title">➕ Adicionais</div>`;
+  extras.forEach(ex => {
+    const label = document.createElement('label'); label.className='pdvc-check-item';
+    label.innerHTML = `<input type="checkbox" class="pdvc-extra-check" data-nome="${(ex.nome||'').replace(/"/g,'&quot;')}" data-preco="${ex.preco||0}" style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;flex-shrink:0" onchange="_pdvModalAtualizarPreco()"><span style="flex:1;font-size:0.88rem;color:#333">${ex.nome}</span>${ex.preco>0?`<span style="font-size:0.82rem;color:var(--primary);font-weight:600">+ Gs ${(ex.preco).toLocaleString('es-PY')}</span>`:'<span style="font-size:0.78rem;color:#aaa">Grátis</span>'}`;
+    sec.appendChild(label);
+  });
+  container.appendChild(sec);
+}
+
+// ── Extras globais ─────────────────────────────────────────────────────────────
+function _pdvRenderExtrasGlobais(container, globais) {
+  if (container.querySelector('#pdvc-extras-globais')) return;
+  const sec = document.createElement('div'); sec.className='pdvc-step'; sec.id='pdvc-extras-globais';
+  sec.innerHTML = `<div class="pdvc-step-title">🧂 Adicionais (opcionais)</div>`;
+  globais.forEach(ex => {
+    const label = document.createElement('label'); label.className='pdvc-check-item';
+    label.innerHTML = `<input type="checkbox" class="pdvc-extra-check" data-nome="${(ex.nome||'').replace(/"/g,'&quot;')}" data-preco="${ex.preco||0}" style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;flex-shrink:0" onchange="_pdvModalAtualizarPreco()"><span style="flex:1;font-size:0.88rem;color:#333">${ex.nome}</span>${ex.preco>0?`<span style="font-size:0.82rem;color:var(--primary);font-weight:600">+ Gs ${(ex.preco).toLocaleString('es-PY')}</span>`:'<span style="font-size:0.78rem;color:#aaa">Grátis</span>'}`;
+    sec.appendChild(label);
+  });
+  container.appendChild(sec);
+}
+
+// ── Confirmar ──────────────────────────────────────────────────────────────────
+function _pdvModalConfirmar() {
+  const st = _pdvModalState;
+  const p = window._pdvProdCache[st.cacheKey];
+  if (!p) return;
+  let variacao = '', montagem = [], preco = p.preco || 0;
+
+  if (st.tipo === 'pizza') {
+    if (!st.pizza.tamanhoSelecionado) { alert('Selecione o tamanho da pizza!'); return; }
+    const saboresOk = (st.pizza.sabores||[]).filter(Boolean);
+    if (saboresOk.length === 0) { alert('Selecione ao menos 1 sabor!'); return; }
+    if (st.pizza.numSabores && saboresOk.length < st.pizza.numSabores) { alert(`Selecione ${st.pizza.numSabores} sabores (selecionado: ${saboresOk.length}).`); return; }
+    const tamPreco = st.pizza.tamanhoSelecionado.preco||0;
+    const saborExtra = saboresOk.reduce((acc,s)=>Math.max(acc,s.preco||0),0);
+    preco = tamPreco + saborExtra + (st.pizza.bordaConfig?.preco||0);
+    variacao = st.pizza.tamanhoSelecionado.nome;
+    const n = st.pizza.numSabores||1;
+    montagem = [saboresOk.map((s,i)=>n>1?`${i+1}/${n} ${s.nome}`:s.nome).join(' | ')].filter(Boolean);
+    if (st.pizza.bordaConfig) montagem.push(`Borda: ${st.pizza.bordaConfig.nome}`);
+  } else if (st.tipo === 'shake') {
+    if (!st.shake.tamanhoSelecionado) { alert('Escolha um tamanho para o Shake!'); return; }
+    if (!st.shake.saborSelecionado) { alert('Escolha um sabor para o Shake!'); return; }
+    preco = (st.shake.tamanhoSelecionado.preco||0) + (st.shake.saborSelecionado.preco||0);
+    variacao = [st.shake.tamanhoSelecionado.nome, st.shake.saborSelecionado.nome].filter(Boolean).join(' – ');
+    montagem = [variacao];
+  } else if (st.tipo === 'montavel') {
+    const cfgEtapas = Array.isArray(st.cfg) ? st.cfg : (st.cfg && st.cfg.etapas ? st.cfg.etapas : []);
+    for (let k in st.montavel) { if (st.montavel[k]?.length>0) { const t=cfgEtapas[k]?cfgEtapas[k].titulo:`Etapa ${parseInt(k)+1}`; montagem.push(`${t}: ${st.montavel[k].join(', ')}`); } }
+    preco = p.preco||0;
+  } else if (st.tipo === 'almoco') {
+    if (!st.almoco) { alert('Selecione o prato!'); return; }
+    variacao = st.almoco.nome; preco = st.almoco.preco||p.preco||0;
+    if (st.almoco.desc) montagem.push(st.almoco.desc);
+  }
+
+  // Extras marcados
+  const extrasEscolhidos = [];
+  document.querySelectorAll('#pdv-complex-modal .pdvc-extra-check:checked').forEach(cb => {
+    const nome=cb.dataset.nome||''; const ePreco=parseInt(cb.dataset.preco||0);
+    if (nome) { extrasEscolhidos.push({nome,preco:ePreco}); preco+=ePreco; }
+  });
+  if (extrasEscolhidos.length>0) montagem.push('Extras: '+extrasEscolhidos.map(e=>e.nome).join(', '));
+
+  const obs = document.getElementById('pdv-modal-obs')?.value||'';
+  const qtd = st.qtd||1;
+  const itemId = `${p.id}_${variacao||st.tipo}_${Date.now()}`;
+  for (let i=0; i<qtd; i++) {
+    carrinhoPDV.push({ id:p.id, _itemId:itemId+'_'+i, nome:p.nome, img:p.imagem_url, preco, qtd:1, variacao, montagem:montagem.filter(Boolean), obs });
+  }
+  atualizarCarrinhoPDV();
+  document.getElementById('pdv-complex-modal')?.remove();
 }
 
 // Cache seguro de produto — evita JSON.stringify em onclick (causava crash com montagem_config)
@@ -4936,17 +5308,31 @@ async function salvarPedidoBalcao() {
   if (carrinhoPDV.length === 0 && window._mesaAbertaId)
     return alert('Adicione ao menos 1 novo item antes de lançar.');
 
+  const tipo = _pdvTipoEntrega || 'local';
   const mesa = document.getElementById('balcao-mesa').value.trim();
-  if (!mesa) {
+  const endereco = document.getElementById('balcao-endereco')?.value.trim() || '';
+
+  if (tipo === 'local' && !mesa) {
     alert('⚠️ Número de mesa é obrigatório!');
     document.getElementById('balcao-mesa').focus();
     return;
   }
+  if (tipo === 'delivery' && !endereco) {
+    alert('⚠️ Informe o endereço ou link para o Delivery!');
+    document.getElementById('balcao-endereco').focus();
+    return;
+  }
+
+  const tipoEntregaBanco = tipo === 'delivery' ? 'delivery' : tipo === 'levar' ? 'retirada' : 'balcao';
+  let enderecoFinal = '';
+  if (tipo === 'local') enderecoFinal = `Mesa ${mesa}`;
+  else if (tipo === 'levar') enderecoFinal = 'Retirada no balcão';
+  else if (tipo === 'delivery') enderecoFinal = endereco;
 
   const cli = document.getElementById('balcao-cliente').value || 'Cliente';
   const tel = document.getElementById('balcao-telefone').value || '';
   let pag = document.getElementById('balcao-pag').value;
-  const nomeFinal = `MESA ${mesa} - ${cli}`;
+  const nomeFinal = tipo === 'local' ? `MESA ${mesa} - ${cli}` : cli;
 
   // ── Tratamento Multipagamento ────────────────────────────────
   let obsPagPDV = 'Pagamento no Balcão';
@@ -5025,13 +5411,13 @@ async function salvarPedidoBalcao() {
   const pedido = {
     uid_temporal: `BALC-${Math.floor(Math.random() * 1000)}`,
     status: 'em_preparo',
-    tipo_entrega: 'balcao',
+    tipo_entrega: tipoEntregaBanco,
     total_geral: totalNovo,
     subtotal: totalNovo,
     frete_cobrado_cliente: 0,
     forma_pagamento: pag,
     itens: novosItens,
-    endereco_entrega: `Mesa ${mesa}`,
+    endereco_entrega: enderecoFinal,
     cliente_nome: nomeFinal,
     cliente_telefone: tel,
     obs_pagamento: obsPagPDV,
@@ -5051,6 +5437,8 @@ async function salvarPedidoBalcao() {
   document.getElementById('balcao-cliente').value = '';
   document.getElementById('balcao-mesa').value = '';
   document.getElementById('balcao-telefone').value = '';
+  if (document.getElementById('balcao-endereco')) document.getElementById('balcao-endereco').value = '';
+  pdvSelecionarTipo('local');
   // Reset multipagamento PDV
   const multiPartesPDV = document.getElementById('multi-partes-pdv');
   if (multiPartesPDV) multiPartesPDV.innerHTML = '';

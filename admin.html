@@ -13,6 +13,39 @@
     <link rel="stylesheet" href="admin.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <base target="_blank">
+  <style>
+    .pdv-tipo-btn { flex:1; padding:8px 4px; border:2px solid #ddd; border-radius:10px; background:#f8f9fa; font-size:0.78rem; font-weight:700; color:#666; cursor:pointer; transition:all 0.15s; text-align:center; line-height:1.4; }
+    .pdv-tipo-btn:hover { border-color:var(--primary); color:var(--primary); background:#f0faf0; }
+    .pdv-tipo-ativo { border-color:var(--primary) !important; background:#e8f5e8 !important; color:var(--primary) !important; }
+    .pdvc-step { margin-bottom:20px }
+    .pdvc-step-title { font-weight:700; font-size:0.9rem; color:#444; margin-bottom:10px; display:flex; align-items:center; gap:8px }
+    .pdvc-step-num { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--primary,#1a7a2e); color:#fff; font-size:0.75rem; font-weight:700; flex-shrink:0 }
+    .pdvc-size-grid { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px }
+    .pdvc-size-card { flex:1; min-width:88px; padding:10px 8px; border:2px solid #e5e7eb; border-radius:10px; background:#fafafa; cursor:pointer; text-align:center; transition:border-color 0.15s,background 0.15s }
+    .pdvc-size-card:hover,.pdvc-size-card.selected { border-color:var(--primary,#1a7a2e); background:#e8f5e8 }
+    .pdvc-size-name { font-weight:700; font-size:0.88rem; color:#333 }
+    .pdvc-size-info { font-size:0.75rem; color:#888; margin-top:2px }
+    .pdvc-size-price { font-size:0.85rem; color:var(--primary,#1a7a2e); font-weight:700; margin-top:4px }
+    .pdvc-divisao-grid { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px }
+    .pdvc-divisao-btn { padding:8px 14px; border:2px solid #e5e7eb; border-radius:8px; background:#fafafa; cursor:pointer; font-size:0.85rem; font-weight:600; color:#555; transition:border-color 0.15s }
+    .pdvc-divisao-btn:hover,.pdvc-divisao-btn.selected { border-color:var(--primary,#1a7a2e); background:#e8f5e8; color:var(--primary,#1a7a2e) }
+    .pdvc-sabores-grid { display:flex; flex-direction:column; gap:6px; margin-top:6px }
+    .pdvc-sabor-btn { display:flex; align-items:center; gap:10px; padding:9px 12px; border:2px solid #e5e7eb; border-radius:10px; background:#fafafa; cursor:pointer; text-align:left; width:100%; transition:border-color 0.15s }
+    .pdvc-sabor-btn:hover,.pdvc-sabor-btn.selected { border-color:var(--primary,#1a7a2e); background:#e8f5e8 }
+    .pdvc-sabor-img { width:40px; height:40px; border-radius:8px; object-fit:cover; flex-shrink:0 }
+    .pdvc-sabor-nome { font-weight:600; font-size:0.88rem; color:#333 }
+    .pdvc-sabor-desc { font-size:0.75rem; color:#888; margin-top:2px }
+    .pdvc-sabor-preco { font-size:0.8rem; color:var(--primary,#1a7a2e); font-weight:600; margin-top:2px }
+    .pdvc-slot-header { font-size:0.82rem; font-weight:700; color:#777; margin:10px 0 4px; text-transform:uppercase; letter-spacing:0.03em }
+    .pdvc-borda-grid { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px }
+    .pdvc-borda-btn { padding:8px 12px; border:2px solid #e5e7eb; border-radius:8px; background:#fafafa; cursor:pointer; font-size:0.82rem; font-weight:600; transition:border-color 0.15s }
+    .pdvc-borda-btn:hover,.pdvc-borda-btn.selected { border-color:var(--primary,#1a7a2e); background:#e8f5e8; color:var(--primary,#1a7a2e) }
+    .pdvc-check-item { display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid #eee; border-radius:8px; margin-bottom:4px; cursor:pointer; transition:background 0.12s }
+    .pdvc-check-item:hover { background:#f8f8f8 }
+    .pdvc-check-item input[type="checkbox"] { width:16px !important; height:16px !important; min-width:16px !important; padding:0 !important; flex-shrink:0; accent-color:var(--primary,#1a7a2e); cursor:pointer; border:none !important; background:transparent !important }
+    .pdvc-prato-btn { display:flex; align-items:center; gap:10px; padding:10px 12px; border:2px solid #e5e7eb; border-radius:10px; background:#fafafa; cursor:pointer; text-align:left; width:100%; margin-bottom:6px; transition:border-color 0.15s }
+    .pdvc-prato-btn:hover,.pdvc-prato-btn.selected { border-color:var(--primary,#1a7a2e); background:#e8f5e8 }
+  </style>
 </head>
   <body>
     <audio id="som-campainha" preload="auto" loop>
@@ -287,10 +320,16 @@
             <div class="pdv-carrinho pdv-tab-active">
               <h4 class="pdv-carrinho-titulo">🛒 Novo Pedido</h4>
 
+              <!-- Tipo de atendimento PDV -->
+              <div style="display:flex;gap:6px;margin-bottom:10px">
+                <button type="button" class="pdv-tipo-btn pdv-tipo-ativo" id="pdv-tipo-local" onclick="pdvSelecionarTipo('local')">🍽️ Local</button>
+                <button type="button" class="pdv-tipo-btn" id="pdv-tipo-levar" onclick="pdvSelecionarTipo('levar')">🥡 Levar</button>
+                <button type="button" class="pdv-tipo-btn" id="pdv-tipo-delivery" onclick="pdvSelecionarTipo('delivery')">🛵 Delivery</button>
+              </div>
               <div class="pdv-form-row">
-                <div class="pdv-mesa-col">
-                  <label class="pdv-label">Mesa <span class="obrig">*</span></label>
-                  <input type="number" id="balcao-mesa" class="form-control" placeholder="Nº" min="1" required />
+                <div class="pdv-mesa-col" id="pdv-mesa-col">
+                  <label class="pdv-label" id="pdv-mesa-label">Mesa <span class="obrig">*</span></label>
+                  <input type="number" id="balcao-mesa" class="form-control" placeholder="Nº" min="1" />
                 </div>
                 <div class="pdv-cliente-col">
                   <label class="pdv-label">Cliente</label>
@@ -300,6 +339,10 @@
               <div class="pdv-tel-row">
                 <label class="pdv-label">Telefone</label>
                 <input type="tel" id="balcao-telefone" class="form-control" placeholder="Ex: 0981234567" />
+              </div>
+              <div id="pdv-delivery-row" style="display:none;margin-bottom:8px">
+                <label class="pdv-label">📍 Endereço / Link de localização</label>
+                <input type="text" id="balcao-endereco" class="form-control" placeholder="Cole o endereço ou link do Google Maps" />
               </div>
 
               <div class="pdv-lista-itens" id="pdv-lista"></div>
