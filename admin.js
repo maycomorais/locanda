@@ -4706,8 +4706,15 @@ function _pdvPizzaPasso2(p) {
 function _pdvPizzaSelecionarDivisao(n, el) {
   document.querySelectorAll('#pdvc-passo2 .pdvc-divisao-btn').forEach(b => b.classList.remove('selected'));
   el.classList.add('selected');
-  _pdvModalState.pizza.numSabores = n; _pdvModalState.pizza.sabores = new Array(n).fill(null);
+  _pdvModalState.pizza.numSabores = n;
+  _pdvModalState.pizza.sabores = new Array(n).fill(null);
   _pdvPizzaPasso3(n);
+  // Scroll direto para os sabores
+  setTimeout(() => {
+    const p3 = document.getElementById('pdvc-passo3');
+    const scrollEl = document.getElementById('pdv-complex-body');
+    if (p3 && scrollEl) scrollEl.scrollTo({ top: p3.offsetTop - 12, behavior: 'smooth' });
+  }, 80);
 }
 
 function _pdvPizzaPasso3(n) {
@@ -4736,10 +4743,41 @@ function _pdvPizzaSelecionarSabor(slot, nome, preco, el) {
   const lista = document.getElementById(`pdvc-slot-${slot}`);
   if (lista) lista.querySelectorAll('.pdvc-sabor-btn').forEach(b => b.classList.remove('selected'));
   el.classList.add('selected');
+
+  // Tag de fração visual
+  el.querySelectorAll('.pdvc-fracao-tag').forEach(t => t.remove());
+  const tag = document.createElement('span');
+  tag.className = 'pdvc-fracao-tag';
+  const n = _pdvModalState.pizza.numSabores || 1;
+  tag.textContent = n > 1 ? `${slot + 1}/${n}` : '✓';
+  tag.style.cssText = 'position:absolute;top:6px;right:6px;background:var(--primary);color:#fff;font-size:0.68rem;font-weight:700;border-radius:10px;padding:2px 6px';
+  el.style.position = 'relative';
+  el.appendChild(tag);
+
   _pdvModalState.pizza.sabores[slot] = { nome, preco };
   _pdvModalAtualizarPreco();
-  const n = _pdvModalState.pizza.numSabores || 1;
-  if ((_pdvModalState.pizza.sabores||[]).filter(Boolean).length >= n) _pdvPizzaPasso4();
+
+  const cheios = (_pdvModalState.pizza.sabores || []).filter(Boolean).length;
+  const scrollEl = document.getElementById('pdv-complex-body');
+
+  if (cheios >= n) {
+    // Todos slots preenchidos → mostra borda
+    _pdvPizzaPasso4();
+    setTimeout(() => {
+      const p4 = document.getElementById('pdvc-passo4');
+      if (p4 && scrollEl) scrollEl.scrollTo({ top: p4.offsetTop - 12, behavior: 'smooth' });
+    }, 80);
+  } else {
+    // Scroll para o próximo slot
+    setTimeout(() => {
+      const proxLista = document.getElementById(`pdvc-slot-${slot + 1}`);
+      if (proxLista && scrollEl) {
+        const header = proxLista.previousElementSibling;
+        const target = header || proxLista;
+        scrollEl.scrollTo({ top: target.offsetTop - 12, behavior: 'smooth' });
+      }
+    }, 80);
+  }
 }
 
 function _pdvPizzaPasso4() {
