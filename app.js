@@ -964,24 +964,31 @@ function _selecionarDivisao(n) {
     </div>
     <div class="pizza-sabores-lista" id="pizza-slot-${slot}">
       ${saboresFiltrados.map((s) => {
-        const sfEsc = (s.nome || '').replace(/'/g, "\\'");
-        const tipoLower = (s.tipo || 'Tradicional').toLowerCase();
-        let tipoBadge = '';
-        if (tipoLower === 'especial') tipoBadge = `<span class="pizza-sabor-tipo-badge tipo-especial">⭐ Especial</span>`;
-        else if (tipoLower === 'doce') tipoBadge = `<span class="pizza-sabor-tipo-badge tipo-doce">🍫 Doce</span>`;
-        const iconHtml = s.img
-          ? `<img src="${s.img}" class="pizza-sabor-img" alt="${s.nome}" onerror="this.style.display='none'">`
-          : `<div class="pizza-sabor-emoji">🍕</div>`;
-        return `<button type="button" class="pizza-sabor-item" data-slot="${slot}" data-nome="${s.nome}" data-preco="${s.preco || 0}" data-tipo="${s.tipo || 'Tradicional'}" onclick="_selecionarSaborSlot(${slot}, '${sfEsc}', ${s.preco || 0}, this, '${s.tipo || 'Tradicional'}')">
-          ${iconHtml}
-          <div class="pizza-sabor-info">
-            <div class="pizza-sabor-nome">${s.nome}</div>
-            ${s.desc ? `<div class="pizza-sabor-desc">${s.desc}</div>` : ''}
-            ${s.preco ? `<div class="pizza-sabor-preco">+ Gs ${(s.preco).toLocaleString('es-PY')}</div>` : ''}
-          </div>
-          ${tipoBadge}
-        </button>`;
-      }).join('')}
+  const sfEsc = (s.nome || '').replace(/'/g, "\\'");
+  const tipoLower = (s.tipo || 'Tradicional').toLowerCase();
+  // ── badge de tipo ──
+  let tipoBadge = '';
+  if (tipoLower === 'especial') tipoBadge = `<span class="pizza-sabor-tipo-badge tipo-especial">⭐ Especial</span>`;
+  else if (tipoLower === 'premium') tipoBadge = `<span class="pizza-sabor-tipo-badge tipo-especial" style="background:#7c3aed">🏆 Premium</span>`;
+  else if (tipoLower === 'doce') tipoBadge = `<span class="pizza-sabor-tipo-badge tipo-doce">🍫 Doce</span>`;
+  // ── ícone (estava faltando!) ──
+  const iconHtml = s.img
+    ? `<img src="${s.img}" class="pizza-sabor-img" alt="${s.nome}" onerror="this.style.display='none'">`
+    : `<div class="pizza-sabor-emoji">🍕</div>`;
+  // ── diferença de preço pelo tipo ──
+  const tamAtual = _pizzaConfig.tamanhoSelecionado;
+  const precoTipo = tamAtual ? _precoPizzaPorTipo(tamAtual, s.tipo) : 0;
+  const precoDiff = tamAtual ? precoTipo - _precoPizzaPorTipo(tamAtual, 'Tradicional') : 0;
+  return `<button type="button" class="pizza-sabor-item" data-slot="${slot}" data-nome="${s.nome}" data-preco="0" data-tipo="${s.tipo || 'Tradicional'}" onclick="_selecionarSaborSlot(${slot}, '${sfEsc}', 0, this, '${s.tipo || 'Tradicional'}')">
+    ${iconHtml}
+    <div class="pizza-sabor-info">
+      <div class="pizza-sabor-nome">${s.nome}</div>
+      ${s.desc ? `<div class="pizza-sabor-desc">${s.desc}</div>` : ''}
+      ${precoDiff > 0 ? `<div class="pizza-sabor-preco">+ Gs ${precoDiff.toLocaleString('es-PY')}</div>` : ''}
+    </div>
+    ${tipoBadge}
+  </button>`;
+}).join('')}
     </div>`;
   }
   html += `</section>`;
@@ -1110,21 +1117,36 @@ function _atualizarResumo() {
   const saboresOk = (_pizzaConfig.sabores || []).filter(Boolean);
   if (saboresOk.length === 0) { el.style.display = 'none'; return; }
 
-  // Preço base = tamanho (é sempre o preço principal da pizza)
-  // Sabor premium (s.preco > 0) adiciona diferença sobre o tamanho
-  const tamPreco = _pizzaConfig.tamanhoSelecionado?.preco || 0;
-  const saborExtra = saboresOk.reduce((acc, s) => Math.max(acc, s.preco || 0), 0);
-  const precoBase = tamPreco + (saborExtra > 0 ? saborExtra : 0);
-  const precoBorda = _pizzaConfig.bordaConfig?.preco || 0;
   const tam = _pizzaConfig.tamanhoSelecionado;
+  const precoBase = _calcularBasePizza(tam, saboresOk);
+  const precoBorda = _pizzaConfig.bordaConfig?.preco || 0;
+  const tipoLabels = { tradicional: '🍕', especial: '⭐', premium: '🏆', doce: '🍫' };
 
   el.style.display = 'block';
   el.innerHTML = `
     <div class="pizza-resumo-header">🍕 Resumo da sua pizza</div>
     ${tam ? `<div class="pizza-resumo-linha"><span>Tamanho</span><span>${tam.nome} (${tam.fatias} fatias · ⌀${tam.cm}cm)</span></div>` : ''}
-    ${saboresOk.map((s, i) => `<div class="pizza-resumo-linha"><span>${_pizzaConfig.numSabores > 1 ? `${i+1}/${_pizzaConfig.numSabores} Sabor` : 'Sabor'}</span><span>${s.nome}</span></div>`).join('')}
+    ${saboresOk.map((s, i) => {
+      const tl = (s.tipo || 'Tradicional').toLowerCase();
+      const icon = tipoLabels[tl] || '🍕';
+      return `<div class="pizza-resumo-linha"><span>${_pizzaConfig.numSabores > 1 ? `${i+1}/${_pizzaConfig.numSabores} Sabor` : 'Sabor'}</span><span>${icon} ${s.nome} <span style="font-size:0.75em;opacity:0.7">(${s.tipo||'Tradicional'})</span></span></div>`;
+    }).join('')}
     ${_pizzaConfig.bordaConfig ? `<div class="pizza-resumo-linha"><span>Borda</span><span>${_pizzaConfig.bordaConfig.nome}</span></div>` : ''}
     <div class="pizza-resumo-total"><span>Total</span><span>Gs ${((precoBase + precoBorda) * (qtd || 1)).toLocaleString('es-PY')}</span></div>`;
+}
+
+function _precoPizzaPorTipo(tam, tipo) {
+  const t = (tipo || 'Tradicional').toLowerCase();
+  if (t === 'premium'  && tam.preco_premium  > 0) return tam.preco_premium;
+  if (t === 'especial' && tam.preco_especial > 0) return tam.preco_especial;
+  if (t === 'doce'     && tam.preco_doce     > 0) return tam.preco_doce;
+  return tam.preco_tradicional || tam.preco || 0;
+}
+
+// Retorna o maior preço entre os sabores selecionados
+function _calcularBasePizza(tam, saboresOk) {
+  if (!tam || saboresOk.length === 0) return tam ? _precoPizzaPorTipo(tam, 'Tradicional') : 0;
+  return Math.max(...saboresOk.map(s => _precoPizzaPorTipo(tam, s.tipo || 'Tradicional')));
 }
 
 function _atualizarPrecoPizza() {
@@ -1154,9 +1176,8 @@ function _atualizarPrecoPizza() {
     return;
   }
   const saboresOk = (_pizzaConfig.sabores || []).filter(Boolean);
-  const tamPreco = _pizzaConfig.tamanhoSelecionado?.preco || prodAtual.preco || 0;
-  const saborExtra = saboresOk.reduce((acc, s) => Math.max(acc, s.preco || 0), 0);
-  const precoBase = tamPreco + (saborExtra > 0 ? saborExtra : 0);
+const tam = _pizzaConfig.tamanhoSelecionado;
+const precoBase = tam ? _calcularBasePizza(tam, saboresOk) : (prodAtual?.preco || 0);
   const precoBorda = _pizzaConfig.bordaConfig?.preco || 0;
   const total = (precoBase + precoBorda + extrasTotal) * qtd;
   document.getElementById('modal-price').innerText = `Gs ${total.toLocaleString('es-PY')}`;
@@ -1363,10 +1384,9 @@ function adicionarDoModal() {
     //   Total   = (Base + Extra) * qtd + Borda * qtd
     // ─────────────────────────────────────────────────────────────
     const saboresOk = (_pizzaConfig.sabores || []).filter(Boolean);
-    const tamPreco    = _pizzaConfig.tamanhoSelecionado?.preco || 0;   // SEMPRE a base
-    const saborExtra  = saboresOk.reduce((acc, s) => Math.max(acc, s.preco || 0), 0); // premium opcional
-    const precoBorda  = _pizzaConfig.bordaConfig?.preco || 0;
-    precoFinal = tamPreco + saborExtra + precoBorda;
+    const tam         = _pizzaConfig.tamanhoSelecionado;
+const precoBorda  = _pizzaConfig.bordaConfig?.preco || 0;
+precoFinal = _calcularBasePizza(tam, saboresOk) + precoBorda;
 
     variacao  = _pizzaConfig.tamanhoSelecionado?.nome || '';
     const numSab = _pizzaConfig.numSabores || 1;

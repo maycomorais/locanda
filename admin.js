@@ -4640,13 +4640,27 @@ function _pdvModalQtd(delta) {
   _pdvModalAtualizarPreco();
 }
 
+function _precoPizzaPorTipo(tam, tipo) {
+  const t = (tipo || 'Tradicional').toLowerCase();
+  if (t === 'premium'  && tam.preco_premium  > 0) return tam.preco_premium;
+  if (t === 'especial' && tam.preco_especial > 0) return tam.preco_especial;
+  if (t === 'doce'     && tam.preco_doce     > 0) return tam.preco_doce;
+  return tam.preco_tradicional || tam.preco || 0;
+}
+
+// Retorna o maior preço entre os sabores selecionados
+function _calcularBasePizza(tam, saboresOk) {
+  if (!tam || saboresOk.length === 0) return tam ? _precoPizzaPorTipo(tam, 'Tradicional') : 0;
+  return Math.max(...saboresOk.map(s => _precoPizzaPorTipo(tam, s.tipo || 'Tradicional')));
+}
+
 function _pdvModalAtualizarPreco() {
   const st = _pdvModalState;
   let preco = 0;
   if (st.tipo === 'pizza') {
-    const tamPreco = st.pizza.tamanhoSelecionado?.preco || 0;
-    const saborExtra = (st.pizza.sabores || []).filter(Boolean).reduce((acc, s) => Math.max(acc, s.preco || 0), 0);
-    preco = tamPreco + saborExtra + (st.pizza.bordaConfig?.preco || 0);
+    const tam = st.pizza.tamanhoSelecionado;
+const saboresOk = (st.pizza.sabores || []).filter(Boolean);
+preco = _calcularBasePizza(tam, saboresOk) + (st.pizza.bordaConfig?.preco || 0);
   } else if (st.tipo === 'shake') {
     preco = (st.shake.tamanhoSelecionado?.preco || 0) + (st.shake.saborSelecionado?.preco || 0);
   } else if (st.tipo === 'almoco') {
@@ -4728,9 +4742,25 @@ function _pdvPizzaPasso3(n) {
     html += n > 1 ? `<div class="pdvc-slot-header">${slot+1}º sabor</div>` : '';
     html += `<div class="pdvc-sabores-grid" id="pdvc-slot-${slot}">`;
     (p.sabores||[]).forEach(s => {
-      const sfEsc = (s.nome||'').replace(/'/g,"\\'");
-      const imgHtml = s.img ? `<img src="${s.img}" class="pdvc-sabor-img" onerror="this.style.display='none'">` : `<span style="font-size:1.5rem">🍕</span>`;
-      html += `<button type="button" class="pdvc-sabor-btn" data-slot="${slot}" onclick="_pdvPizzaSelecionarSabor(${slot},'${sfEsc}',${s.preco||0},this)">${imgHtml}<div><div class="pdvc-sabor-nome">${s.nome}</div>${s.desc?`<div class="pdvc-sabor-desc">${s.desc}</div>`:''} ${s.preco?`<div class="pdvc-sabor-preco">+ Gs ${(s.preco).toLocaleString('es-PY')}</div>`:''}</div></button>`;
+  const sfEsc = (s.nome||'').replace(/'/g,"\\'");
+  const tipoLower = (s.tipo||'Tradicional').toLowerCase();
+  let badge = '';
+  if (tipoLower === 'especial') badge = `<span style="background:#f59e0b;color:#fff;font-size:0.68rem;font-weight:700;border-radius:10px;padding:2px 6px;white-space:nowrap">⭐ Especial</span>`;
+  else if (tipoLower === 'premium') badge = `<span style="background:#7c3aed;color:#fff;font-size:0.68rem;font-weight:700;border-radius:10px;padding:2px 6px;white-space:nowrap">🏆 Premium</span>`;
+  else if (tipoLower === 'doce') badge = `<span style="background:#ec4899;color:#fff;font-size:0.68rem;font-weight:700;border-radius:10px;padding:2px 6px;white-space:nowrap">🍫 Doce</span>`;
+  const tam = _pdvModalState.pizza.tamanhoSelecionado;
+  const precoTipo = tam ? _precoPizzaPorTipo(tam, s.tipo) : 0;
+  const precoDiff = tam ? precoTipo - _precoPizzaPorTipo(tam, 'Tradicional') : 0;
+  const imgHtml = s.img ? `<img src="${s.img}" class="pdvc-sabor-img" onerror="this.style.display='none'">` : `<span style="font-size:1.5rem">🍕</span>`;
+  html += `<button type="button" class="pdvc-sabor-btn" data-slot="${slot}" onclick="_pdvPizzaSelecionarSabor(${slot},'${sfEsc}',0,'${s.tipo||'Tradicional'}',this)">
+    ${imgHtml}
+    <div style="flex:1">
+      <div class="pdvc-sabor-nome">${s.nome}</div>
+      ${s.desc?`<div class="pdvc-sabor-desc">${s.desc}</div>`:''}
+      ${precoDiff > 0 ? `<div class="pdvc-sabor-preco">+ Gs ${precoDiff.toLocaleString('es-PY')}</div>` : ''}
+    </div>
+    ${badge}
+  </button>`;
     });
     html += `</div>`;
   }
@@ -4739,12 +4769,11 @@ function _pdvPizzaPasso3(n) {
   setTimeout(() => passo3.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 80);
 }
 
-function _pdvPizzaSelecionarSabor(slot, nome, preco, el) {
+function _pdvPizzaSelecionarSabor(slot, nome, preco, tipo, el) {
   const lista = document.getElementById(`pdvc-slot-${slot}`);
   if (lista) lista.querySelectorAll('.pdvc-sabor-btn').forEach(b => b.classList.remove('selected'));
   el.classList.add('selected');
 
-  // Tag de fração visual
   el.querySelectorAll('.pdvc-fracao-tag').forEach(t => t.remove());
   const tag = document.createElement('span');
   tag.className = 'pdvc-fracao-tag';
@@ -4754,27 +4783,23 @@ function _pdvPizzaSelecionarSabor(slot, nome, preco, el) {
   el.style.position = 'relative';
   el.appendChild(tag);
 
-  _pdvModalState.pizza.sabores[slot] = { nome, preco };
+  _pdvModalState.pizza.sabores[slot] = { nome, tipo: tipo || 'Tradicional' };
   _pdvModalAtualizarPreco();
 
   const cheios = (_pdvModalState.pizza.sabores || []).filter(Boolean).length;
   const scrollEl = document.getElementById('pdv-complex-body');
-
   if (cheios >= n) {
-    // Todos slots preenchidos → mostra borda
     _pdvPizzaPasso4();
     setTimeout(() => {
       const p4 = document.getElementById('pdvc-passo4');
       if (p4 && scrollEl) scrollEl.scrollTo({ top: p4.offsetTop - 12, behavior: 'smooth' });
     }, 80);
   } else {
-    // Scroll para o próximo slot
     setTimeout(() => {
       const proxLista = document.getElementById(`pdvc-slot-${slot + 1}`);
       if (proxLista && scrollEl) {
         const header = proxLista.previousElementSibling;
-        const target = header || proxLista;
-        scrollEl.scrollTo({ top: target.offsetTop - 12, behavior: 'smooth' });
+        scrollEl.scrollTo({ top: (header || proxLista).offsetTop - 12, behavior: 'smooth' });
       }
     }, 80);
   }
@@ -4909,9 +4934,8 @@ function _pdvModalConfirmar() {
     const saboresOk = (st.pizza.sabores||[]).filter(Boolean);
     if (saboresOk.length === 0) { alert('Selecione ao menos 1 sabor!'); return; }
     if (st.pizza.numSabores && saboresOk.length < st.pizza.numSabores) { alert(`Selecione ${st.pizza.numSabores} sabores (selecionado: ${saboresOk.length}).`); return; }
-    const tamPreco = st.pizza.tamanhoSelecionado.preco||0;
-    const saborExtra = saboresOk.reduce((acc,s)=>Math.max(acc,s.preco||0),0);
-    preco = tamPreco + saborExtra + (st.pizza.bordaConfig?.preco||0);
+    const tam = st.pizza.tamanhoSelecionado;
+preco = _calcularBasePizza(tam, saboresOk) + (st.pizza.bordaConfig?.preco||0);
     variacao = st.pizza.tamanhoSelecionado.nome;
     const n = st.pizza.numSabores||1;
     montagem = [saboresOk.map((s,i)=>n>1?`${i+1}/${n} ${s.nome}`:s.nome).join(' | ')].filter(Boolean);

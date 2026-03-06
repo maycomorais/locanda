@@ -3666,3 +3666,25 @@ hr.modal-divisor {
     #modal-relatorio table { font-size: 0.75rem; }
     #modal-relatorio th, #modal-relatorio td { padding: 8px 6px; }
 }
+
+/* PDV modal — sabor button responsivo no mobile */
+@media (max-width: 480px) {
+  .pdvc-sabor-btn {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .pdvc-sabor-img {
+    width: 36px;
+    height: 36px;
+  }
+  .pdvc-sabor-nome {
+    font-size: 0.82rem;
+  }
+  .pdvc-sabor-desc {
+    font-size: 0.7rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
