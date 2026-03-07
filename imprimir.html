@@ -63,6 +63,12 @@
 
         .rodape { text-align: center; font-size: 13px; margin-top: 4px; }
 
+        /* Detalhes do item (sabores, montagem, obs) */
+        .detalhe-variacao  { font-size: 13px; color: #555; font-weight: normal; }
+        .detalhe-preparo   { font-size: 13px; color: #2980b9; font-weight: normal; }
+        .detalhe-montagem  { font-size: 15px; font-weight: normal; color: #222; }
+        .detalhe-obs       { font-size: 13px; font-weight: bold; color: #c0392b; }
+
         .btn-print {
             display: block; width: 100%; padding: 16px;
             background: #1a7a2e; color: white; border: none;
@@ -118,16 +124,11 @@
             td     { padding: 5px 0; font-weight: bold; }
             td small { font-size: 16px; font-weight: normal; }
 
-            /* Observações e variação */
-            td small[style*="color:#555"],  /* variação */
-            td small[style*="color:#2980b9"] /* preparo */ {
-                font-size: 16px;
-                font-weight: bold;
-            }
-            td strong[style*="font-size:10px"] { /* OBS */
-                font-size: 17px !important;
-                font-weight: bold;
-            }
+            /* Detalhes do item na impressão */
+            .detalhe-variacao  { font-size: 16px; font-weight: bold; }
+            .detalhe-preparo   { font-size: 16px; font-weight: bold; }
+            .detalhe-montagem  { font-size: 20px; font-weight: bold; } /* mesmo tamanho do nome */
+            .detalhe-obs       { font-size: 17px; font-weight: bold; }
 
             /* Totais */
             .totals      { font-size: 18px; font-weight: bold; line-height: 2; }
@@ -266,7 +267,13 @@
                                         || 1;
                         
                         // Extrai nome
-                        const nomeItem = item.n || item.nome || item.name || ('Item '+(idx+1));
+                        // Se o nome for placeholder genérico de pizza e existir sabor, usa "Pizza"
+                        let nomeItem = item.n || item.nome || item.name || ('Item '+(idx+1));
+                        const montagemRaw = item.m || item.montagem || [];
+                        const primeiroSabor = Array.isArray(montagemRaw) && montagemRaw.length > 0 ? montagemRaw[0] : '';
+                        if (/escolha\s+tamanho/i.test(nomeItem) && primeiroSabor) {
+                          nomeItem = 'Pizza';
+                        }
                         
                         // Extrai preço — usa parseFloat para garantir número
                         const preco = parseFloat(item.p !== undefined ? item.p : (item.preco !== undefined ? item.preco : (item.valor || 0))) || 0;
@@ -279,20 +286,20 @@
                         let detalhes = '';
                         // Mostra variação apenas se for diferente do nome do item (evita duplicação)
                         if (tipo && tipo !== nomeItem && tipo !== 'Padrão' && tipo !== 'Montado') {
-                          detalhes += '<br><small style="color:#555">▸ '+tipo+'</small>';
+                          detalhes += '<br><span class="detalhe-variacao">▸ '+tipo+'</span>';
                         }
-                        if (preparo) detalhes += '<br><small style="color:#2980b9">🍳 '+preparo+'</small>';
-                        if (Array.isArray(montagem) && montagem.length > 0) {
-                          montagem.forEach(linha => {
-                            const idx = linha.indexOf(':');
-                            if (idx > 0) {
-                              detalhes += '<br><small style="font-size:10px"><strong>'+linha.slice(0,idx)+':</strong> '+linha.slice(idx+1).trim()+'</small>';
+                        if (preparo) detalhes += '<br><span class="detalhe-preparo">🍳 '+preparo+'</span>';
+                        if (Array.isArray(montagemRaw) && montagemRaw.length > 0) {
+                          montagemRaw.forEach(linha => {
+                            const colonIdx = linha.indexOf(':');
+                            if (colonIdx > 0) {
+                              detalhes += '<br><span class="detalhe-montagem"><strong>'+linha.slice(0,colonIdx)+':</strong> '+linha.slice(colonIdx+1).trim()+'</span>';
                             } else {
-                              detalhes += '<br><small style="font-style:italic; font-size:10px">· '+linha+'</small>';
+                              detalhes += '<br><span class="detalhe-montagem">'+linha+'</span>';
                             }
                           });
                         }
-                        if (observacao) detalhes += '<br><strong style="font-size:10px">OBS: '+observacao+'</strong>';
+                        if (observacao) detalhes += '<br><span class="detalhe-obs">OBS: '+observacao+'</span>';
                         
                         const total = (preco * quantidade).toLocaleString('es-PY');
                         tr.innerHTML = '<td style="vertical-align:top">'+quantidade+'x</td><td>'+nomeItem+detalhes+'</td><td style="text-align:right">Gs '+total+'</td>';
