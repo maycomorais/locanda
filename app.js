@@ -1751,7 +1751,8 @@ function aplicarCupom() {
 function atualizarTotalCheckout() {
   const totalItens = carrinho.reduce((a, i) => a + i.preco * i.qtd, 0);
   let desconto = 0;
-  let freteAplicado = freteCalculado;
+  // -1 é sentinela 'a combinar' — trata como 0 para o total
+  let freteAplicado = freteCalculado === -1 ? 0 : freteCalculado;
   
   if (cupomAplicado) {
     if (cupomAplicado.tipo === 'percentual') {
@@ -1780,12 +1781,21 @@ function atualizarTotalCheckout() {
   }
   
   if (modoEntrega === 'delivery') {
-    html += `
-      <div style="display:flex;justify-content:space-between;margin:5px 0;font-size:0.9rem">
-        <span>Frete:</span>
-        <span>Gs ${freteAplicado.toLocaleString('es-PY')}</span>
-      </div>
-    `;
+    if (freteCalculado === -1) {
+      html += `
+        <div style="display:flex;justify-content:space-between;margin:5px 0;font-size:0.9rem;color:#e67e22">
+          <span>Frete:</span>
+          <span>🤝 A Combinar</span>
+        </div>
+      `;
+    } else {
+      html += `
+        <div style="display:flex;justify-content:space-between;margin:5px 0;font-size:0.9rem">
+          <span>Frete:</span>
+          <span>Gs ${freteAplicado.toLocaleString('es-PY')}</span>
+        </div>
+      `;
+    }
   }
   
   const totalEl = document.getElementById('total-final-checkout');
@@ -1833,7 +1843,7 @@ function verificarPagamento() {
   } else if (pag === 'Pix') {
     infoDiv.style.display = 'block';
     const totalItens = carrinho.reduce((a, i) => a + i.preco * i.qtd, 0);
-    let freteAplicado = modoEntrega === 'delivery' ? freteCalculado : 0;
+    let freteAplicado = modoEntrega === 'delivery' ? Math.max(0, freteCalculado) : 0;
     let desconto = 0;
     if (cupomAplicado) {
       if (cupomAplicado.tipo === 'percentual') desconto = Math.round(totalItens * (cupomAplicado.valor / 100));
@@ -1879,7 +1889,7 @@ const METODOS_PAG = [
 
 function _getTotalPedidoAtual() {
   const totalItens = carrinho.reduce((a, i) => a + i.preco * i.qtd, 0);
-  let freteAplicado = modoEntrega === 'delivery' ? freteCalculado : 0;
+  let freteAplicado = modoEntrega === 'delivery' ? Math.max(0, freteCalculado) : 0;
   let desconto = 0;
   if (cupomAplicado) {
     if (cupomAplicado.tipo === 'percentual') desconto = Math.round(totalItens * (cupomAplicado.valor / 100));
@@ -2067,8 +2077,8 @@ async function calcularFrete() {
       const dist = calcularDistancia(COORD_LOJA.lat, COORD_LOJA.lng, localCliente.lat, localCliente.lng);
       
       // === TABELA DE FRETE DINÂMICA (configurada no admin) ===
-      // Faixas: [0-3], [3.1-4], [4.1-5], ..., [19.1-20], >20 = a combinar
-      const LIMITES_KM = [3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+      // Faixas: [0-2], [2.1-3.9], [4-6], [6.1-7], ..., [19.1-20], >20 = a combinar
+      const LIMITES_KM = [2, 3.9, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
       let freteIndex = -1;
       for (let i = 0; i < LIMITES_KM.length; i++) {
         if (dist <= LIMITES_KM[i]) { freteIndex = i; break; }
@@ -2077,6 +2087,19 @@ async function calcularFrete() {
       if (freteIndex === -1) {
         // Acima de 20km
         freteCalculado = -1; // sentinela: a combinar
+        msg.innerHTML = `<span style="color:#e67e22">⚠️ Distância: ${dist.toFixed(1)}km — Frete <strong>a combinar</strong> pelo WhatsApp.</span>`;
+        msg.style.color = '#e67e22';
+        boxErro.style.display = 'none';
+        btn.innerText = '✅ Localização OK';
+        btn.disabled = false;
+        atualizarTotalCheckout();
+        return;
+      }
+
+      // Verifica se a faixa está marcada como "A combinar" no admin
+      if (TABELA_FRETE && TABELA_FRETE[freteIndex] !== undefined && TABELA_FRETE[freteIndex].acombinar) {
+        freteCalculado = -1; // sentinela: a combinar
+        freteMotoboy   = 0;
         msg.innerHTML = `<span style="color:#e67e22">⚠️ Distância: ${dist.toFixed(1)}km — Frete <strong>a combinar</strong> pelo WhatsApp.</span>`;
         msg.style.color = '#e67e22';
         boxErro.style.display = 'none';
@@ -2197,7 +2220,9 @@ async function enviarZap() {
 
   const totalItens = carrinho.reduce((a, i) => a + i.preco * i.qtd, 0);
   let desconto = 0;
-  let freteAplicado = freteCalculado;
+  // -1 é sentinela 'a combinar' — salva como 0 no banco e no total
+  let freteAplicado = freteCalculado === -1 ? 0 : freteCalculado;
+  const freteACombinar = freteCalculado === -1;
   
   if (cupomAplicado) {
     if (cupomAplicado.tipo === 'percentual') {
@@ -2288,13 +2313,17 @@ async function enviarZap() {
   if (modoEntrega === 'delivery') {
     if (localCliente) {
       msg += `📍 Maps: https://maps.google.com/?q=${localCliente.lat},${localCliente.lng}\n`;
-      // Frete real (distância) sempre mostrado para motoboy, mesmo se cliente ganhou grátis
-      const _freteReal = freteCalculado;
-      const _fretePago = freteAplicado;
-      if (_freteReal > 0 && _fretePago === 0) {
-        msg += `🛵 Delivery: FRETE GRÁTIS (valor: Gs ${_freteReal.toLocaleString('es-PY')})\n`;
-      } else if (_freteReal > 0) {
-        msg += `🛵 Delivery: Gs ${_fretePago.toLocaleString('es-PY')}\n`;
+      // Verifica se frete é 'a combinar' (sentinela -1)
+      if (freteACombinar) {
+        msg += `🛵 Delivery: 🤝 A COMBINAR (confirmar pelo WhatsApp)\n`;
+      } else {
+        const _freteReal = freteCalculado;
+        const _fretePago = freteAplicado;
+        if (_freteReal > 0 && _fretePago === 0) {
+          msg += `🛵 Delivery: FRETE GRÁTIS (valor: Gs ${_freteReal.toLocaleString('es-PY')})\n`;
+        } else if (_freteReal > 0) {
+          msg += `🛵 Delivery: Gs ${_fretePago.toLocaleString('es-PY')}\n`;
+        }
       }
     } else if (usouPlanoB) {
       msg += `📍 *Localização:* Enviarei aqui no WhatsApp 📎\n`;
@@ -2321,9 +2350,16 @@ async function enviarZap() {
   }
   
   if (modoEntrega === 'delivery' && !usouPlanoB) {
+    if (freteACombinar) {
+      msg += `Delivery: 🤝 A COMBINAR\n`;
+      msg += `TOTAL (sem frete): Gs ${totalGeral.toLocaleString('es-PY')}\n`;
+    } else {
       msg += `Delivery: Gs ${freteAplicado.toLocaleString('es-PY')}\n`;
+      msg += `TOTAL: Gs ${totalGeral.toLocaleString('es-PY')}\n`;
+    }
+  } else {
+    msg += `TOTAL: Gs ${totalGeral.toLocaleString('es-PY')}\n`;
   }
-  msg += `TOTAL: Gs ${totalGeral.toLocaleString('es-PY')}\n`;
   msg += `--------------------------\n`;
 
   // Pagamento e Troco

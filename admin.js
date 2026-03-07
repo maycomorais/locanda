@@ -54,6 +54,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   window.addEventListener('resize', () => {
+    // Ignora resize causado pelo teclado virtual no mobile (quando um input está focado)
+    // Isso evita o bug de sair da aba do carrinho ao digitar o número da mesa
+    const activeEl = document.activeElement;
+    const isKeyboardOpen = activeEl && (
+      activeEl.tagName === 'INPUT' ||
+      activeEl.tagName === 'TEXTAREA' ||
+      activeEl.tagName === 'SELECT' ||
+      activeEl.isContentEditable
+    );
+    if (isKeyboardOpen) return;
     if (document.getElementById('pdv')?.classList.contains('active')) pdvIniciarTabs();
   });
 
@@ -3943,10 +3953,9 @@ function previewIcone(input) {
 // TABELA DE FRETE
 // =========================================================
 const FRETE_FAIXAS = [
-  { label: '0 – 3 km',      max: 3.0  },
-  { label: '3,1 – 4 km',    max: 4.0  },
-  { label: '4,1 – 5 km',    max: 5.0  },
-  { label: '5,1 – 6 km',    max: 6.0  },
+  { label: '0 – 2 km',      max: 2.0  },
+  { label: '2,1 – 3,9 km',  max: 3.9  },
+  { label: '4 – 6 km',      max: 6.0  },
   { label: '6,1 – 7 km',    max: 7.0  },
   { label: '7,1 – 8 km',    max: 8.0  },
   { label: '8,1 – 9 km',    max: 9.0  },
@@ -3963,27 +3972,68 @@ const FRETE_FAIXAS = [
   { label: '19,1 – 20 km',  max: 20.0 },
 ];
 
+function toggleCombinarFrete(checkbox, idx) {
+  const lojaInput = document.querySelector(`.frete-loja[data-idx="${idx}"]`);
+  const motoInput = document.querySelector(`.frete-motoboy[data-idx="${idx}"]`);
+  const lojaWrap  = document.getElementById(`frete-loja-wrap-${idx}`);
+  const motoWrap  = document.getElementById(`frete-moto-wrap-${idx}`);
+  const checked   = checkbox.checked;
+  if (lojaInput) { lojaInput.disabled = checked; lojaInput.style.opacity = checked ? '0.3' : '1'; }
+  if (motoInput) { motoInput.disabled = checked; motoInput.style.opacity = checked ? '0.3' : '1'; }
+  if (lojaWrap)  lojaWrap.style.display = checked ? 'none' : '';
+  if (motoWrap)  motoWrap.style.display = checked ? 'none' : '';
+  const badge = document.getElementById(`frete-combinar-badge-${idx}`);
+  if (badge) badge.style.display = checked ? '' : 'none';
+}
+
 function _renderTabelaFrete(savedData) {
   const tbody = document.getElementById('tabela-frete-body');
   if (!tbody) return;
   tbody.innerHTML = '';
   FRETE_FAIXAS.forEach((faixa, idx) => {
-    const saved = (savedData && savedData[idx]) || {};
-    const valLoja   = saved.loja   ?? '';
+    const saved     = (savedData && savedData[idx]) || {};
+    const valLoja   = saved.loja    ?? '';
     const valMoto   = saved.motoboy ?? '';
+    const combinado = !!saved.acombinar;
     const bg = idx % 2 === 0 ? '#fff' : '#f9f9f9';
     tbody.innerHTML += `
-      <tr style="background:${bg}">
-        <td style="padding:8px;font-weight:600;white-space:nowrap">${faixa.label}</td>
-        <td style="padding:8px;text-align:center">
-          <input type="number" class="form-control frete-loja" data-idx="${idx}"
-                 value="${valLoja}" placeholder="0" min="0" step="1000"
-                 style="text-align:center;max-width:130px;margin:0 auto;border:1.5px solid #2980b9">
+      <tr style="background:${bg}; vertical-align:middle;">
+        <td style="padding:8px 10px;font-weight:700;white-space:nowrap;font-size:0.87rem">${faixa.label}</td>
+
+        <td style="padding:8px;text-align:center;">
+          <div id="frete-loja-wrap-${idx}" style="display:${combinado ? 'none' : ''}">
+            <input type="number" class="form-control frete-loja" data-idx="${idx}"
+                   value="${valLoja}" placeholder="0" min="0" step="1000"
+                   ${combinado ? 'disabled' : ''}
+                   style="text-align:center;max-width:130px;margin:0 auto;
+                          border:1.5px solid #2980b9;opacity:${combinado ? '0.3' : '1'}">
+          </div>
+          <span id="frete-combinar-badge-${idx}"
+                style="display:${combinado ? '' : 'none'};
+                       background:#fff3cd;color:#856404;border:1px solid #ffc107;
+                       border-radius:20px;padding:3px 12px;font-size:0.8rem;font-weight:700;
+                       white-space:nowrap;">
+            🤝 A Combinar
+          </span>
+          <label style="display:flex;align-items:center;justify-content:center;gap:5px;
+                        margin-top:5px;font-size:0.75rem;color:#888;cursor:pointer;user-select:none;">
+            <input type="checkbox" class="frete-combinar" data-idx="${idx}"
+                   ${combinado ? 'checked' : ''}
+                   onchange="toggleCombinarFrete(this, ${idx})"
+                   style="width:14px;height:14px;accent-color:#e67e22;cursor:pointer;margin:0">
+            A combinar
+          </label>
         </td>
-        <td style="padding:8px;text-align:center">
-          <input type="number" class="form-control frete-motoboy" data-idx="${idx}"
-                 value="${valMoto}" placeholder="0" min="0" step="1000"
-                 style="text-align:center;max-width:130px;margin:0 auto;border:1.5px solid #27ae60">
+
+        <td style="padding:8px;text-align:center;">
+          <div id="frete-moto-wrap-${idx}" style="display:${combinado ? 'none' : ''}">
+            <input type="number" class="form-control frete-motoboy" data-idx="${idx}"
+                   value="${valMoto}" placeholder="0" min="0" step="1000"
+                   ${combinado ? 'disabled' : ''}
+                   style="text-align:center;max-width:130px;margin:0 auto;
+                          border:1.5px solid #27ae60;opacity:${combinado ? '0.3' : '1'}">
+          </div>
+          ${combinado ? `<span style="color:#aaa;font-size:0.8rem;font-style:italic">—</span>` : ''}
         </td>
       </tr>`;
   });
@@ -3992,9 +4042,10 @@ function _renderTabelaFrete(savedData) {
 async function salvarTabelaFrete() {
   const tabela = [];
   FRETE_FAIXAS.forEach((_, idx) => {
-    const loja   = parseInt(document.querySelector(`.frete-loja[data-idx="${idx}"]`)?.value)   || 0;
-    const motoboy = parseInt(document.querySelector(`.frete-motoboy[data-idx="${idx}"]`)?.value) || 0;
-    tabela.push({ loja, motoboy });
+    const combinado = document.querySelector(`.frete-combinar[data-idx="${idx}"]`)?.checked || false;
+    const loja      = combinado ? null : (parseInt(document.querySelector(`.frete-loja[data-idx="${idx}"]`)?.value)   || 0);
+    const motoboy   = combinado ? null : (parseInt(document.querySelector(`.frete-motoboy[data-idx="${idx}"]`)?.value) || 0);
+    tabela.push({ loja, motoboy, acombinar: combinado });
   });
 
   const novoCombus = parseInt(document.getElementById('cfg-combustivel')?.value) || 0;

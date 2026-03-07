@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Locanda — Admin</title>
+
+    <!-- PWA: Instalável no celular/tablet -->
+    <link rel="manifest" href="manifest-admin.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Locanda Admin" />
+    <meta name="theme-color" content="#1a7a2e" />
+    <link rel="apple-touch-icon" href="https://ovhlxaouwclmryeidbyl.supabase.co/storage/v1/object/public/produtos/icone-loja-1772630933911.png" />
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link
@@ -869,7 +878,8 @@
             <i class="fas fa-motorcycle"></i> Tabela de Frete por KM
             <small style="font-weight:400;color:#888;font-size:0.82rem;display:block;margin-top:4px">
               Defina o valor cobrado do <strong>cliente</strong> e o valor pago ao <strong>motoboy</strong> por faixa de distância.
-              Acima de 20km será exibido "A combinar" para o cliente.
+              Use <strong style="color:#e67e22">A combinar</strong> para faixas onde o preço é negociado direto com o cliente — aparecerá no app e na mensagem do WhatsApp.
+              Acima de 20km é sempre exibido "A combinar".
             </small>
           </div>
 
@@ -1376,5 +1386,15 @@
   </div>
 </div>
 
+<script>
+  // Registra o Service Worker para habilitar instalação como PWA
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(() => console.log('Locanda Admin PWA: SW registrado'))
+        .catch(err => console.warn('Locanda Admin PWA: SW não registrado', err));
+    });
+  }
+</script>
 </body>
 </html>
