@@ -5,360 +5,316 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Imprimir Comanda - Locanda Pizzeria</title>
     <style>
-        /* ────────────────────────────────────────────
-           TELA: preview antes de imprimir
-        ──────────────────────────────────────────── */
+        @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            font-family: 'Courier New', Courier, monospace;
-            background: #d0d0d0;
-            padding: 20px;
-            font-size: 15px;
+            font-family: 'Barlow', 'Arial Narrow', Arial, sans-serif;
+            background: #bbb;
+            padding: 16px;
+            font-size: 13px;
         }
 
         .ticket {
             background: #fff;
-            max-width: 360px;
+            max-width: 300px;
             margin: 0 auto;
-            padding: 14px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            padding: 10px 10px 8px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.2);
         }
 
-        h3, p { margin: 0; padding: 0; }
+        /* LOGO */
+        .logo-box { text-align: center; margin-bottom: 4px; }
+        .logo-box img { max-width: 80px; max-height: 50px; object-fit: contain; }
 
-        h3 {
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            letter-spacing: 2px;
-            margin-bottom: 4px;
+        /* CABECALHO */
+        .nome-loja { text-align:center; font-size:16px; font-weight:800; letter-spacing:1px; line-height:1.2; }
+        .sub-loja  { text-align:center; font-size:11px; color:#555; margin-bottom:4px; }
+        .num-pedido { text-align:center; font-size:15px; font-weight:700; }
+
+        hr { border:none; border-top:1px dashed #666; margin:5px 0; }
+
+        /* INFO */
+        .info-line { font-size:11px; line-height:1.55; }
+        .info-line b { font-size:10px; color:#444; }
+
+        /* TIPO ENTREGA */
+        .tipo-entrega-tx { text-align:center; font-size:13px; font-weight:800; letter-spacing:1px; margin:3px 0 2px; }
+        .endereco-ref    { font-size:11px; text-align:center; margin-bottom:2px; }
+
+        /* TABELA ITENS */
+        table { width:100%; border-collapse:collapse; }
+        thead th {
+            font-size:10px; font-weight:700;
+            border-bottom:1px dashed #666;
+            padding-bottom:2px;
+            text-transform:uppercase;
         }
+        thead th:last-child { text-align:right; }
+        tbody td { font-size:12px; font-weight:600; padding:3px 0; vertical-align:top; }
+        tbody td:last-child { text-align:right; white-space:nowrap; }
 
-        .centered        { text-align: center; font-size: 14px; margin-bottom: 3px; }
-        .num-pedido      { font-weight: bold; font-size: 18px; }
-        .tipo-entrega-tx { font-weight: bold; font-size: 18px; text-align: center; margin: 6px 0; }
+        .item-variacao { font-size:11px; font-weight:700; color:#c0392b; }
+        .item-montagem { font-size:11px; font-weight:600; color:#222; line-height:1.45; }
+        .item-montagem b { color:#555; }
+        .item-preparo  { font-size:10px; color:#2980b9; }
+        .item-obs      { font-size:10px; font-weight:700; color:#c0392b; }
 
-        hr { border: none; border-top: 2px dashed #000; margin: 7px 0; }
+        /* TOTAIS */
+        .totals      { text-align:right; font-size:11px; line-height:1.7; }
+        .total-final { font-size:16px; font-weight:800; text-align:right; }
 
-        .info-group        { margin-bottom: 5px; font-size: 14px; line-height: 1.65; }
-        .info-group strong { display: inline-block; width: 60px; font-size: 13px; }
+        /* PAGAMENTO */
+        .pag-metodo { font-size:12px; font-weight:700; }
+        .pag-obs    { font-size:11px; line-height:1.5; }
 
-        #endereco-box { font-size: 14px; margin-bottom: 5px; }
+        /* FACTURA */
+        .box-factura { border:1px dashed #666; padding:4px 6px; font-size:10px; line-height:1.6; margin-top:4px; }
 
-        table { width: 100%; border-collapse: collapse; font-size: 15px; }
-        th {
-            text-align: left;
-            border-bottom: 2px dashed #000;
-            font-size: 13px;
-            padding-bottom: 3px;
-            font-weight: bold;
-        }
-        td { vertical-align: top; padding: 4px 0; font-weight: 600; }
-        td small { font-size: 12px; font-weight: normal; }
-
-        .totals       { text-align: right; font-size: 14px; margin-top: 8px; line-height: 1.8; }
-        .total-final  { font-size: 22px; font-weight: bold; margin-top: 6px; }
-
-        #forma-pag { font-size: 14px; font-weight: bold; }
-        #obs-pag   { font-size: 13px; margin-top: 3px; font-style: italic; line-height: 1.5; }
-
-        .rodape { text-align: center; font-size: 13px; margin-top: 4px; }
-
-        /* Detalhes do item (sabores, montagem, obs) */
-        .detalhe-variacao  { font-size: 13px; color: #555; font-weight: normal; }
-        .detalhe-preparo   { font-size: 13px; color: #2980b9; font-weight: normal; }
-        .detalhe-montagem  { font-size: 15px; font-weight: normal; color: #222; }
-        .detalhe-obs       { font-size: 13px; font-weight: bold; color: #c0392b; }
+        .rodape { text-align:center; font-size:10px; color:#555; margin-top:4px; }
 
         .btn-print {
-            display: block; width: 100%; padding: 16px;
-            background: #1a7a2e; color: white; border: none;
-            font-size: 17px; font-weight: bold;
-            cursor: pointer; margin-top: 20px; border-radius: 8px;
+            display:block; width:100%; padding:14px;
+            background:#1a7a2e; color:white; border:none;
+            font-size:16px; font-weight:700; cursor:pointer;
+            margin-top:16px; border-radius:8px; font-family:inherit;
         }
 
-        /* ────────────────────────────────────────────
-           IMPRESSÃO — Otimizado para rolos térmicos
-           40mm (área útil ~32mm) e 58mm (área útil ~48mm)
-           Fontes grandes e negrito para boa leitura
-        ──────────────────────────────────────────── */
+        /* ── IMPRESSAO TERMICA 58mm — alvo maximo ~10cm ── */
         @media print {
-            body {
-                background: none;
-                padding: 0;
-                margin: 0;
-                font-size: 20px;          /* base grande para térmica */
-                font-weight: bold;
-                -webkit-print-color-adjust: exact;
-            }
-            .btn-print { display: none; }
-            .ticket {
-                box-shadow: none;
-                max-width: 100%;
-                width: 100%;
-                margin: 0;
-                padding: 2px;
-            }
-            @page {
-                margin: 2mm;
-                size: 58mm auto; /* ajusta para 58mm; a 40mm reduzirá automaticamente */
-            }
+            body { background:none; padding:0; margin:0; font-size:12px; -webkit-print-color-adjust:exact; }
+            .btn-print { display:none; }
+            .ticket { box-shadow:none; max-width:100%; width:100%; margin:0; padding:2px 3px; }
+            @page { margin:1.5mm; size:58mm auto; }
 
-            /* Títulos e cabeçalho */
-            h3 {
-                font-size: 30px;
-                font-weight: bold;
-                letter-spacing: 2px;
-            }
-            .num-pedido      { font-size: 26px; font-weight: bold; }
-            .centered        { font-size: 18px; }
-            .tipo-entrega-tx { font-size: 26px; font-weight: bold; }
-
-            /* Info do pedido */
-            .info-group        { font-size: 18px; font-weight: bold; line-height: 1.8; }
-            .info-group strong { font-size: 17px; width: 56px; }
-            #endereco-box      { font-size: 18px; font-weight: bold; }
-
-            /* Itens */
-            table  { font-size: 20px; }
-            th     { font-size: 18px; font-weight: bold; border-bottom-width: 2px; }
-            td     { padding: 5px 0; font-weight: bold; }
-            td small { font-size: 16px; font-weight: normal; }
-
-            /* Detalhes do item na impressão */
-            .detalhe-variacao  { font-size: 16px; font-weight: bold; }
-            .detalhe-preparo   { font-size: 16px; font-weight: bold; }
-            .detalhe-montagem  { font-size: 20px; font-weight: bold; } /* mesmo tamanho do nome */
-            .detalhe-obs       { font-size: 17px; font-weight: bold; }
-
-            /* Totais */
-            .totals      { font-size: 18px; font-weight: bold; line-height: 2; }
-            .total-final { font-size: 30px; font-weight: bold; }
-
-            /* Pagamento */
-            #forma-pag { font-size: 18px; font-weight: bold; }
-            #obs-pag   { font-size: 17px; font-weight: bold; }
-
-            /* Rodapé */
-            .rodape { font-size: 16px; font-weight: bold; }
-
-            hr { border-top: 2px dashed #000; }
+            .nome-loja    { font-size:14px; }
+            .sub-loja     { font-size:10px; }
+            .num-pedido   { font-size:13px; }
+            .tipo-entrega-tx { font-size:12px; }
+            .info-line    { font-size:10px; }
+            .endereco-ref { font-size:10px; }
+            table         { font-size:11px; }
+            thead th      { font-size:9px; }
+            tbody td      { font-size:11px; padding:2px 0; }
+            .item-variacao  { font-size:11px; }
+            .item-montagem  { font-size:11px; }
+            .item-obs       { font-size:10px; }
+            .item-preparo   { font-size:10px; }
+            .totals      { font-size:10px; line-height:1.5; }
+            .total-final { font-size:14px; }
+            .pag-metodo  { font-size:11px; }
+            .pag-obs     { font-size:10px; }
+            .rodape      { font-size:9px; }
+            .box-factura { font-size:9px; }
+            hr { margin:3px 0; }
+            .logo-box img { max-width:55px; max-height:55px; }
         }
     </style>
 <base target="_blank">
-<base target="_blank">
 </head>
 <body>
+<div class="ticket">
 
-    <div class="ticket">
-        <h3>CANTINHO BR</h3>
-        <p class="centered num-pedido">PEDIDO #<span id="id-pedido">---</span></p>
-        <p class="centered">Tel: +595 982 808985</p>
-        <hr>
-
-        <div class="info-group">
-            <strong>Data:</strong> <span id="data-hora">---</span><br>
-            <strong>Cliente:</strong> <span id="nome">---</span><br>
-            <strong>Tel:</strong> <span id="tel">---</span>
-        </div>
-        <hr>
-
-        <div class="tipo-entrega-tx"><span id="tipo-entrega">---</span></div>
-        <div id="endereco-box" style="display:none;">
-            Ref: <span id="ref-entrega">---</span>
-        </div>
-        <hr>
-
-        <table>
-            <thead>
-                <tr>
-                    <th style="width:14%">Qtd</th>
-                    <th>Item</th>
-                    <th style="text-align:right">Total</th>
-                </tr>
-            </thead>
-            <tbody id="lista-itens">
-                <tr><td colspan="3" style="text-align:center;padding:10px;">Carregando...</td></tr>
-            </tbody>
-        </table>
-        <hr>
-
-        <div class="totals">
-            Subtotal: <span id="subtotal">Gs 0</span><br>
-            Frete: <span id="frete">Gs 0</span><br>
-            <div class="total-final">TOTAL: <span id="total-geral">Gs 0</span></div>
-        </div>
-        <hr>
-
-        <div class="info-group">
-            <strong>Pagto:</strong> <span id="forma-pag">---</span>
-            <div id="obs-pag"></div>
-        </div>
-
-        <div id="box-factura" style="display:none; margin-top:10px; border:1px dashed #000; padding:6px;">
-            <strong>DADOS FACTURA:</strong><br>
-            RUC: <span id="ruc">---</span><br>
-            Razão: <span id="razao">---</span>
-        </div>
-
-        <br>
-        <p class="rodape">*** OBRIGADO PELA PREFERÊNCIA ***</p>
+    <!-- ★★★ LOGO — cole o link da imagem em LOGO_URL no script abaixo ★★★ -->
+    <div class="logo-box" id="logo-box" style="display:none">
+        <img id="logo-img" src="" alt="Logo"
+             onerror="document.getElementById('logo-box').style.display='none'">
     </div>
 
-    <button class="btn-print" onclick="window.print()">🖨️ IMPRIMIR PEDIDO</button>
+    <!-- <div class="nome-loja" id="nome-loja">LOCANDA PIZZERIA</div> -->
+    <p class="sub-loja" id="sub-loja">Tel: +595 984 692537</p>
+    <p class="num-pedido">PEDIDO #<span id="id-pedido">---</span></p>
+    <hr>
 
-    <script>
-        window.onload = function() {
-            const params = new URLSearchParams(window.location.search);
-            const codigoBase64 = params.get('d');
-            
-            if(!codigoBase64) {
-                document.body.innerHTML = "<h3 style='text-align:center; color:red; margin-top:50px'>Erro: Link inválido ou incompleto.</h3>";
-                return;
-            }
+    <div class="info-line">
+        <b>Data:</b> <span id="data-hora">---</span><br>
+        <b>Cliente:</b> <span id="nome">---</span><br>
+        <b>Tel:</b> <span id="tel">---</span>
+    </div>
+    <hr>
 
-            try {
-                // Decodifica Base64 URL-safe -> JSON
-                // Reverte substituições: - volta para +, _ volta para /
-                const base64Normal = codigoBase64
-                    .replace(/-/g, '+')
-                    .replace(/_/g, '/');
-                // Adiciona padding = se necessário
-                const pad = base64Normal.length % 4;
-                const base64Padded = pad ? base64Normal + '='.repeat(4 - pad) : base64Normal;
-                
-                const jsonString = decodeURIComponent(escape(atob(base64Padded)));
-                const pedido = JSON.parse(jsonString);
-                
-                console.log('Pedido recebido:', pedido);
+    <div class="tipo-entrega-tx"><span id="tipo-entrega">---</span></div>
+    <div class="endereco-ref" id="endereco-box" style="display:none">
+        <span id="ref-entrega">---</span>
+    </div>
+    <hr>
 
-                // ID DO PEDIDO
-                document.getElementById('id-pedido').innerText = pedido.id || 'S/N';
+    <table>
+        <thead>
+            <tr>
+                <th style="width:12%">Qtd</th>
+                <th>Item</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody id="lista-itens">
+            <tr><td colspan="3" style="text-align:center;padding:6px">Carregando...</td></tr>
+        </tbody>
+    </table>
+    <hr>
 
-                // 1. Cabeçalho
-                document.getElementById('data-hora').innerText = pedido.data || new Date().toLocaleString('pt-BR');
-                document.getElementById('nome').innerText = pedido.cliente?.nome || 'Cliente';
-                document.getElementById('tel').innerText = pedido.cliente?.tel || 'S/N';
+    <div class="totals">
+        Subtotal: <span id="subtotal">Gs 0</span><br>
+        <span id="frete-row">Frete: <span id="frete">Gs 0</span></span><br>
+    </div>
+    <div class="total-final">TOTAL: <span id="total-geral">Gs 0</span></div>
+    <hr>
 
-                // 2. Entrega
-                const tipoEntrega = pedido.entrega?.tipo || 'delivery';
-                document.getElementById('tipo-entrega').innerText = tipoEntrega.toUpperCase();
-                
-                if(tipoEntrega === 'delivery') {
-                    document.getElementById('endereco-box').style.display = 'block';
-                    document.getElementById('ref-entrega').innerText = pedido.entrega?.ref || 'Não informado';
-                }
+    <span class="pag-metodo" id="forma-pag">---</span>
+    <div class="pag-obs" id="obs-pag"></div>
 
-                // 3. Itens 
-                const tbody = document.getElementById('lista-itens');
-                tbody.innerHTML = '';
-                
-                console.log('🍣 Itens recebidos:', JSON.stringify(pedido.itens));
-                
-                const itens = Array.isArray(pedido.itens) ? pedido.itens : [];
-                if (itens.length > 0) {
-                    itens.forEach((item, idx) => {
-                        console.log('Item '+idx+':', JSON.stringify(item));
-                        const tr = document.createElement('tr');
-                        
-                        // Extrai quantidade: aceita q, qtd, quantidade — fallback 1
-                        const quantidade = (item.q !== undefined ? item.q : null) 
-                                        || (item.qtd !== undefined ? item.qtd : null)
-                                        || (item.quantidade !== undefined ? item.quantidade : null)
-                                        || 1;
-                        
-                        // Extrai nome
-                        // Se o nome for placeholder genérico de pizza e existir sabor, usa "Pizza"
-                        let nomeItem = item.n || item.nome || item.name || ('Item '+(idx+1));
-                        const montagemRaw = item.m || item.montagem || [];
-                        const primeiroSabor = Array.isArray(montagemRaw) && montagemRaw.length > 0 ? montagemRaw[0] : '';
-                        if (/escolha\s+tamanho/i.test(nomeItem) && primeiroSabor) {
-                          nomeItem = 'Pizza';
-                        }
-                        
-                        // Extrai preço — usa parseFloat para garantir número
-                        const preco = parseFloat(item.p !== undefined ? item.p : (item.preco !== undefined ? item.preco : (item.valor || 0))) || 0;
-                        
-                        const montagem = item.m || item.montagem || [];
-                        const observacao = item.o || item.obs || item.observacao || '';
-                        const tipo = item.t || item.tipo || '';    // variação (ex: "Combo Grande")
-                        const preparo = item.pr || item.preparo || ''; // preparo (ex: "Flambado")
-                        
-                        let detalhes = '';
-                        // Mostra variação apenas se for diferente do nome do item (evita duplicação)
-                        if (tipo && tipo !== nomeItem && tipo !== 'Padrão' && tipo !== 'Montado') {
-                          detalhes += '<br><span class="detalhe-variacao">▸ '+tipo+'</span>';
-                        }
-                        if (preparo) detalhes += '<br><span class="detalhe-preparo">🍳 '+preparo+'</span>';
-                        if (Array.isArray(montagemRaw) && montagemRaw.length > 0) {
-                          montagemRaw.forEach(linha => {
-                            const colonIdx = linha.indexOf(':');
-                            if (colonIdx > 0) {
-                              detalhes += '<br><span class="detalhe-montagem"><strong>'+linha.slice(0,colonIdx)+':</strong> '+linha.slice(colonIdx+1).trim()+'</span>';
-                            } else {
-                              detalhes += '<br><span class="detalhe-montagem">'+linha+'</span>';
-                            }
-                          });
-                        }
-                        if (observacao) detalhes += '<br><span class="detalhe-obs">OBS: '+observacao+'</span>';
-                        
-                        const total = (preco * quantidade).toLocaleString('es-PY');
-                        tr.innerHTML = '<td style="vertical-align:top">'+quantidade+'x</td><td>'+nomeItem+detalhes+'</td><td style="text-align:right">Gs '+total+'</td>';
-                        tbody.appendChild(tr);
-                    });
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#e74c3c;">Nenhum item encontrado</td></tr>';
-                }
+    <div id="box-factura" class="box-factura" style="display:none">
+        <b>FACTURA:</b> RUC: <span id="ruc">---</span> — <span id="razao">---</span>
+    </div>
 
-                // 4. Totais
-                const valores = pedido.valores || {};
-                document.getElementById('subtotal').innerText = `Gs ${(valores.sub || valores.subtotal || 0).toLocaleString('es-PY')}`;
-                document.getElementById('frete').innerText = `Gs ${(valores.frete || valores.frete_cobrado_cliente || 0).toLocaleString('es-PY')}`;
-                document.getElementById('total-geral').innerText = `Gs ${(valores.total || valores.total_geral || 0).toLocaleString('es-PY')}`;
+    <hr>
+    <p class="rodape">*** OBRIGADO PELA PREFERÊNCIA ***</p>
+</div>
 
-                // 5. Pagamento
-                const pagamento = pedido.pagamento || {};
-                const metodoPag = pagamento.metodo || pagamento.forma_pagamento || 'Não informado';
-                const obsPagRaw = pagamento.obs   || pagamento.obs_pagamento   || '';
+<button class="btn-print" onclick="window.print()">🖨️ IMPRIMIR PEDIDO</button>
 
-                if (metodoPag === 'Multipagamento') {
-                    document.getElementById('forma-pag').innerText = '🔀 Pagamento dividido:';
-                    try {
-                        const partes = JSON.parse(obsPagRaw);
-                        document.getElementById('obs-pag').innerHTML = partes.map((p, i) => {
-                            let linha = `${i + 1}. ${p.metodo}: Gs ${parseFloat(p.valor).toLocaleString('es-PY')}`;
-                            if (p.troco) linha += ` (Troco p/ ${p.troco})`;
-                            return linha;
-                        }).join('<br>');
-                    } catch(e) {
-                        document.getElementById('obs-pag').innerText = obsPagRaw;
-                    }
-                } else {
-                    document.getElementById('forma-pag').innerText = metodoPag;
-                    document.getElementById('obs-pag').innerText = obsPagRaw;
-                }
+<script>
+    const LOGO_URL = 'https://i.ibb.co/nqFZ9h2j/Locanda2.png';
+    // ══════════════════════════════════════════════════════════
 
-                // 6. Factura
-                if(pedido.factura && (pedido.factura.ruc || pedido.factura.razao)) {
-                    document.getElementById('box-factura').style.display = 'block';
-                    document.getElementById('ruc').innerText = pedido.factura.ruc || 'S/N';
-                    document.getElementById('razao').innerText = pedido.factura.razao || 'S/N';
-                }
-                
-                setTimeout(() => window.print(), 800);
-
-            } catch (e) {
-                console.error('Erro ao processar pedido:', e);
-                document.body.innerHTML = `
-                    <h3 style='text-align:center; color:red; margin-top:50px'>
-                        Erro ao ler o pedido.<br><br>
-                        <small>O link pode estar incompleto ou corrompido.</small><br><br>
-                        <button onclick="window.close()" style="padding:10px 20px; background:#1a7a2e; color:white; border:none; border-radius:5px; cursor:pointer;">
-                            Fechar
-                        </button>
-                    </h3>
-                `;
+    window.onload = function() {
+        // Aplica logo se configurada
+        if (LOGO_URL) {
+            const logoBox = document.getElementById('logo-box');
+            const logoImg = document.getElementById('logo-img');
+            if (logoBox && logoImg) {
+                logoImg.src = LOGO_URL;
+                logoBox.style.display = 'block';
             }
         }
-    </script>
+
+        const params = new URLSearchParams(window.location.search);
+        const codigoBase64 = params.get('d');
+
+        if (!codigoBase64) {
+            document.body.innerHTML = "<h3 style='text-align:center;color:red;margin-top:50px'>Erro: Link inválido.</h3>";
+            return;
+        }
+
+        try {
+            const b64 = codigoBase64.replace(/-/g, '+').replace(/_/g, '/');
+            const pad = b64.length % 4;
+            const b64p = pad ? b64 + '='.repeat(4 - pad) : b64;
+            const pedido = JSON.parse(decodeURIComponent(escape(atob(b64p))));
+
+            // Cabeçalho
+            document.getElementById('id-pedido').innerText = pedido.id || 'S/N';
+            document.getElementById('data-hora').innerText = pedido.data || new Date().toLocaleString('pt-BR');
+            document.getElementById('nome').innerText = pedido.cliente?.nome || 'Cliente';
+            document.getElementById('tel').innerText = pedido.cliente?.tel || 'S/N';
+
+            // Entrega
+            const tipo = pedido.entrega?.tipo || 'delivery';
+            const tipoLabel = tipo === 'balcao'   ? '🏪 BALCÃO / MESA'
+                            : tipo === 'retirada' ? '🖐 RETIRADA'
+                            : '🛵 DELIVERY';
+            document.getElementById('tipo-entrega').innerText = tipoLabel;
+
+            // Oculta frete para balcão e retirada
+            if (tipo !== 'delivery') {
+              const freteRow = document.getElementById('frete-row');
+              if (freteRow) freteRow.style.display = 'none';
+            }
+
+            if (pedido.entrega?.ref) {
+                document.getElementById('endereco-box').style.display = 'block';
+                document.getElementById('ref-entrega').innerText = pedido.entrega.ref;
+            }
+
+            // Itens
+            const tbody = document.getElementById('lista-itens');
+            tbody.innerHTML = '';
+            const itens = Array.isArray(pedido.itens) ? pedido.itens : [];
+
+            if (itens.length > 0) {
+                itens.forEach((item, idx) => {
+                    const qtd      = item.q  ?? item.qtd  ?? 1;
+                    const nome     = item.n  || item.nome || ('Item ' + (idx + 1));
+                    const preco    = parseFloat(item.p ?? item.preco ?? 0) || 0;
+                    const variacao = item.t  || item.variacao || '';
+                    const preparo  = item.pr || item.preparo  || '';
+                    const montagem = item.m  || item.montagem || [];
+                    const obs      = item.o  || item.obs      || '';
+
+                    let detalhes = '';
+
+                    // Tamanho / variação (ex: "Pizza G", "Grande")
+                    if (variacao && variacao !== nome) {
+                        detalhes += `<div class="item-variacao">▸ ${variacao}</div>`;
+                    }
+                    // Sabores / montagem
+                    if (Array.isArray(montagem) && montagem.length > 0) {
+                        montagem.forEach(linha => {
+                            const ci = linha.indexOf(':');
+                            if (ci > 0) {
+                                detalhes += `<div class="item-montagem"><b>${linha.slice(0, ci)}:</b> ${linha.slice(ci + 1).trim()}</div>`;
+                            } else {
+                                detalhes += `<div class="item-montagem">${linha}</div>`;
+                            }
+                        });
+                    }
+                    if (preparo) detalhes += `<div class="item-preparo">🍳 ${preparo}</div>`;
+                    if (obs)     detalhes += `<div class="item-obs">⚠️ ${obs}</div>`;
+
+                    const total = (preco * qtd).toLocaleString('es-PY');
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${qtd}x</td><td>${nome}${detalhes}</td><td>Gs ${total}</td>`;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#e74c3c">Nenhum item</td></tr>';
+            }
+
+            // Totais
+            const v = pedido.valores || {};
+            document.getElementById('subtotal').innerText    = `Gs ${(v.sub    || v.subtotal   || 0).toLocaleString('es-PY')}`;
+            document.getElementById('frete').innerText       = `Gs ${(v.frete  || 0).toLocaleString('es-PY')}`;
+            document.getElementById('total-geral').innerText = `Gs ${(v.total  || v.total_geral || 0).toLocaleString('es-PY')}`;
+
+            // Pagamento
+            const pg = pedido.pagamento || {};
+            const metodo = pg.metodo || pg.forma_pagamento || 'Não informado';
+            const obsPag = pg.obs || pg.obs_pagamento || '';
+
+            if (metodo === 'Multipagamento') {
+                document.getElementById('forma-pag').innerText = '🔀 Pag. dividido:';
+                try {
+                    const partes = JSON.parse(obsPag);
+                    document.getElementById('obs-pag').innerHTML = partes.map((p, i) => {
+                        let l = `${i+1}. ${p.metodo}: Gs ${parseFloat(p.valor).toLocaleString('es-PY')}`;
+                        if (p.troco) l += ` (Troco p/ ${p.troco})`;
+                        return l;
+                    }).join('<br>');
+                } catch(e) {
+                    document.getElementById('obs-pag').innerText = obsPag;
+                }
+            } else {
+                document.getElementById('forma-pag').innerText = metodo;
+                document.getElementById('obs-pag').innerText   = obsPag;
+            }
+
+            // Factura
+            if (pedido.factura && (pedido.factura.ruc || pedido.factura.razao)) {
+                document.getElementById('box-factura').style.display = 'block';
+                document.getElementById('ruc').innerText   = pedido.factura.ruc   || 'S/N';
+                document.getElementById('razao').innerText = pedido.factura.razao || 'S/N';
+            }
+
+            setTimeout(() => window.print(), 700);
+
+        } catch(e) {
+            console.error('Erro:', e);
+            document.body.innerHTML = `<h3 style='text-align:center;color:red;margin-top:50px'>
+                Erro ao ler o pedido.<br><small>${e.message}</small><br><br>
+                <button onclick="window.close()" style="padding:10px 20px;background:#1a7a2e;color:#fff;border:none;border-radius:5px;cursor:pointer">Fechar</button>
+            </h3>`;
+        }
+    }
+</script>
 </body>
 </html>

@@ -396,7 +396,14 @@ async function carregarPedidos(silencioso = false) {
             p.tipo_entrega === "balcao" ? "fa-store" : "fa-hand-holding";
           const tipo = p.tipo_entrega === "balcao" ? "BALCÃO" : "RETIRADA";
           checkbox = `<div style="text-align:center; color:#e67e22; font-size:1.2rem"><i class="fas ${icone}" title="${tipo}"></i></div>`;
-          acoes = `${btnPrint} ${btnCancelar} <button class="btn btn-success btn-sm" onclick="finalizarMesa(${p.id})">Baixar</button>`;
+          const _telDsk = (p.cliente_telefone || "").replace(/\D/g, "");
+          const _nomeDsk = (p.cliente_nome || "").replace(/^MESA \d+ - /i, "") || "Cliente";
+          const _mesaDsk = (p.endereco_entrega || "").replace("Mesa ", "") || "";
+          const btnWhatsDsk = p.tipo_entrega === "balcao" && _telDsk.length >= 7
+            ? `<button class="btn btn-sm" style="background:#25D366;color:#fff;border:none;border-radius:4px;padding:3px 8px;cursor:pointer"
+               onclick="avisarClientePronto('${_telDsk}','${_nomeDsk.replace(/'/g,"\'")}','${_mesaDsk}')"><i class="fab fa-whatsapp"></i></button>`
+            : "";
+          acoes = `${btnPrint} ${btnCancelar} ${btnWhatsDsk} <button class="btn btn-success btn-sm" onclick="finalizarMesa(${p.id})">Baixar</button>`;
         }
       }
 
@@ -467,8 +474,16 @@ async function carregarPedidos(silencioso = false) {
               : !temSolicitacaoCancelamento
                 ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i> Cancelar</button>`
                 : "";
+          const _telCard = (p.cliente_telefone || "").replace(/\D/g, "");
+          const _nomeCard = (p.cliente_nome || "").replace(/^MESA \d+ - /i, "") || "Cliente";
+          const _mesaCard = (p.endereco_entrega || "").replace("Mesa ", "") || "";
+          const btnWhatsCard = _telCard.length >= 7
+            ? `<button class="btn btn-success btn-sm" style="background:#25D366;border-color:#25D366;width:100%;margin-top:4px"
+               onclick="avisarClientePronto('${_telCard}','${_nomeCard.replace(/'/g,"\'")}','${_mesaCard}')"><i class="fab fa-whatsapp"></i> Avisar Cliente</button>`
+            : "";
           cardAcoes = `<button class="btn btn-success btn-sm" onclick="finalizarMesa(${p.id})"><i class="fas fa-check"></i> Entregar</button>
                         <button class="btn btn-info btn-sm" onclick="imprimirPedido(${p.id})"><i class="fas fa-print"></i> Imprimir</button>
+                        ${btnWhatsCard}
                         ${_btnCancelBalcao}`;
         } else if (p.status === "pronto_entrega") {
           const _btnCancelPronto =
@@ -1971,7 +1986,8 @@ async function salvarProduto() {
           parseFloat(row.querySelector('[data-f="preco_especial"]')?.value) ||
           0;
         const pPrem =
-          parseFloat(row.querySelector('[data-f="Premium"]')?.value) || 0;
+          parseFloat(row.querySelector('[data-f="preco_premium"]')?.value) ||
+          0;
         const pDoce =
           parseFloat(row.querySelector('[data-f="preco_doce"]')?.value) || 0;
         const pBordaRow =
@@ -1995,7 +2011,7 @@ async function salvarProduto() {
           cm: parseInt(row.querySelector('[data-f="cm"]').value) || 0,
           preco_tradicional: pTrad,
           preco_especial: pEsp,
-          preco_premium: pEsp,
+          preco_premium: pPrem,
           preco_doce: pDoce,
           borda_preco: pBordaRow,
           borda_preco_especial: pBordaEspRow || null,
@@ -2471,7 +2487,7 @@ function addPizzaTamanho(dados = {}) {
     <div class="pizza-tamanho-precos" style="margin-top:6px;padding-top:8px;border-top:1px dashed #e0e0e0">
       <div><label>🧀 Borda Trad. (Gs)</label><input data-f="borda_preco" type="number" class="form-control" value="${pBorda}" placeholder="10000"></div>
       <div><label>🧀 Borda Esp. (Gs)</label><input data-f="borda_preco_especial" type="number" class="form-control" value="${dados.borda_preco_especial ?? ""}" placeholder="12000"></div>
-      <div><label>🧀 Borda Prem. (Gs)</label><input data-f="borda_preco_Premium" type="number" class="form-control" value="${dados.borda_preco_Premium ?? ""}" placeholder="12000"></div>
+      <div><label>🧀 Borda Prem. (Gs)</label><input data-f="borda_preco_premium" type="number" class="form-control" value="${dados.borda_preco_premium ?? ""}" placeholder="12000"></div>
       <div><label>🧀 Borda Doce (Gs)</label><input data-f="borda_preco_doce" type="number" class="form-control" value="${dados.borda_preco_doce ?? ""}" placeholder="12000"></div>
     </div>
 
@@ -4329,23 +4345,13 @@ function previewIcone(input) {
 // TABELA DE FRETE
 // =========================================================
 const FRETE_FAIXAS = [
-  { label: "0 – 2 km", max: 2.0 },
-  { label: "2,1 – 3,9 km", max: 3.9 },
-  { label: "4 – 6 km", max: 6.0 },
-  { label: "6,1 – 7 km", max: 7.0 },
-  { label: "7,1 – 8 km", max: 8.0 },
-  { label: "8,1 – 9 km", max: 9.0 },
-  { label: "9,1 – 10 km", max: 10.0 },
-  { label: "10,1 – 11 km", max: 11.0 },
-  { label: "11,1 – 12 km", max: 12.0 },
-  { label: "12,1 – 13 km", max: 13.0 },
-  { label: "13,1 – 14 km", max: 14.0 },
-  { label: "14,1 – 15 km", max: 15.0 },
-  { label: "15,1 – 16 km", max: 16.0 },
-  { label: "16,1 – 17 km", max: 17.0 },
-  { label: "17,1 – 18 km", max: 18.0 },
-  { label: "18,1 – 19 km", max: 19.0 },
-  { label: "19,1 – 20 km", max: 20.0 },
+  { label: "Até 1,9 km",   max: 1.9 },
+  { label: "2 – 3 km",     max: 3.0 },
+  { label: "3,1 – 4 km",   max: 4.0 },
+  { label: "4,1 – 5 km",   max: 5.0 },
+  { label: "5,1 – 7 km",   max: 7.0 },
+  { label: "7,1 – 9 km",   max: 9.0 },
+  { label: "10 km +",      max: 99999 },
 ];
 
 function toggleCombinarFrete(checkbox, idx) {
@@ -4372,10 +4378,26 @@ function _renderTabelaFrete(savedData) {
   const tbody = document.getElementById("tabela-frete-body");
   if (!tbody) return;
   tbody.innerHTML = "";
+
+  // Reconstrói mapa por label para sobreviver à troca de faixas
+  const savedByLabel = {};
+  if (Array.isArray(savedData)) {
+    savedData.forEach((entry, i) => {
+      // Guarda por índice (legado) e por label, se disponível
+      if (entry && entry._label) savedByLabel[entry._label] = entry;
+      savedByLabel[`__idx_${i}`] = entry;
+    });
+  }
+
   FRETE_FAIXAS.forEach((faixa, idx) => {
-    const saved = (savedData && savedData[idx]) || {};
-    const valLoja = saved.loja ?? "";
-    const valMoto = saved.motoboy ?? "";
+    // Tenta achar pelo label primeiro (migração segura); fallback por índice
+    const saved = savedByLabel[faixa.label] ||
+                  savedByLabel[`__idx_${idx}`] ||
+                  (Array.isArray(savedData) ? savedData[idx] : null) ||
+                  {};
+    // Mostra vazio se valor for 0 (melhor UX — placeholder já mostra "0")
+    const valLoja = saved.loja  ? saved.loja  : "";
+    const valMoto = saved.motoboy ? saved.motoboy : "";
     const combinado = !!saved.acombinar;
     const bg = idx % 2 === 0 ? "#fff" : "#f9f9f9";
     tbody.innerHTML += `
@@ -4437,7 +4459,7 @@ async function salvarTabelaFrete() {
       : parseInt(
           document.querySelector(`.frete-motoboy[data-idx="${idx}"]`)?.value,
         ) || 0;
-    tabela.push({ loja, motoboy, acombinar: combinado });
+    tabela.push({ _label: faixa.label, loja, motoboy, acombinar: combinado });
   });
 
   const novoCombus =
@@ -4873,6 +4895,17 @@ async function carregarPDV() {
   renderizarGridPDV();
   atualizarBarraMesasAtivas();
   pdvIniciarTabs();
+
+  // Restaura telefone salvo no localStorage (persiste entre recargas)
+  const telSalvo = localStorage.getItem('locanda_pdv_tel');
+  const elTelPDV = document.getElementById('balcao-telefone');
+  if (elTelPDV) {
+    if (telSalvo) elTelPDV.value = telSalvo;
+    // Salva ao digitar
+    elTelPDV.addEventListener('input', () => {
+      localStorage.setItem('locanda_pdv_tel', elTelPDV.value);
+    });
+  }
 }
 
 let produtosCatsPDV = [];
@@ -5751,6 +5784,7 @@ function _pdvModalConfirmar() {
       preco,
       qtd: 1,
       variacao,
+      categoria_slug: p.categoria_slug || '',
       montagem: montagem.filter(Boolean),
       obs,
     });
@@ -5834,6 +5868,7 @@ function _mostrarModalVariacaoPDV(produto, variacoes) {
           preco: v.preco || p.preco || 0,
           qtd: 1,
           variacao: v.nome,
+          categoria_slug: p.categoria_slug || '',
           montagem: [],
           obs: "",
         });
@@ -6207,9 +6242,18 @@ async function salvarPedidoBalcao() {
   const endereco =
     document.getElementById("balcao-endereco")?.value.trim() || "";
 
+  // Declara tel ANTES de usar na validação
+  const cli = document.getElementById("balcao-cliente").value || "Cliente";
+  const tel = document.getElementById("balcao-telefone").value || "";
+
   if (tipo === "local" && !mesa) {
     alert("⚠️ Número de mesa é obrigatório!");
     document.getElementById("balcao-mesa").focus();
+    return;
+  }
+  if (tipo === "local" && !tel) {
+    alert("⚠️ Telefone do cliente é obrigatório para pedidos na mesa!");
+    document.getElementById("balcao-telefone").focus();
     return;
   }
   if (tipo === "delivery" && !endereco) {
@@ -6224,9 +6268,6 @@ async function salvarPedidoBalcao() {
   if (tipo === "local") enderecoFinal = `Mesa ${mesa}`;
   else if (tipo === "levar") enderecoFinal = "Retirada no balcão";
   else if (tipo === "delivery") enderecoFinal = endereco;
-
-  const cli = document.getElementById("balcao-cliente").value || "Cliente";
-  const tel = document.getElementById("balcao-telefone").value || "";
   let pag = document.getElementById("balcao-pag").value;
   const nomeFinal = tipo === "local" ? `MESA ${mesa} - ${cli}` : cli;
 
@@ -6252,17 +6293,24 @@ async function salvarPedidoBalcao() {
     obsPagPDV = JSON.stringify(partesPDV);
   }
 
-  // ── Novos itens ganham status_item: 'pendente' ─────────────────
+  // ── Novos itens ganham status_item: 'pendente'
+  // Bebidas (categoria_slug contendo 'bebida') pulam a cozinha — já saem entregues
+  const _isBebida = (i) => {
+    const cat = (i.categoria_slug || i.cat || "").toLowerCase();
+    return cat.includes("bebida");
+  };
+
   const novosItens = carrinhoPDV.map((i) => ({
   id: i.id || Date.now() + Math.random(),
   nome: i.nome,
   preco: i.preco,
   qtd: i.qtd,
-  variacao: i.variacao || '',   // ← variação/sabor (ex: "Misto", "Grande")
-  preparo: i.preparo || '',     // ← preparo (ex: "Flambado", "Cru")
-  montagem: i.montagem || [],   // ← etapas montável (ex: ["Base: Arroz", "Extras: Taré"])
+  variacao: i.variacao || '',
+  preparo: i.preparo || '',
+  montagem: i.montagem || [],
   obs: i.obs || '',
-  status_item: 'pendente',
+  categoria_slug: i.categoria_slug || '',
+  status_item: _isBebida(i) ? 'entregue' : 'pendente',
   lancado_em: new Date().toISOString(),
 }));
 
@@ -6298,6 +6346,10 @@ async function salvarPedidoBalcao() {
       return;
     }
 
+    // Captura snapshot para impressão ANTES de resetar
+    const _snapMesa = window._mesaAbertaPedido;
+    const _snapId   = window._mesaAbertaId;
+
     // Reset
     window._mesaAbertaId = null;
     window._mesaAbertaTotal = 0;
@@ -6310,7 +6362,24 @@ async function salvarPedidoBalcao() {
     atualizarCarrinhoPDV();
     atualizarBarraMesasAtivas();
     carregarMonitorMesas();
-    _imprimirPedidoLocal(pedidoInserido || pedido, novosItens);
+
+    // Monta objeto completo para impressão com totais corretos
+    const itensExistentesSnap = Array.isArray(_snapMesa?.itens) ? _snapMesa.itens : [];
+    const itensMergedSnap = [...itensExistentesSnap, ...novosItens];
+    const novoTotalSnap = itensMergedSnap.reduce((acc, i) => acc + (i.preco || 0) * (i.qtd || 1), 0);
+    _imprimirPedidoLocal({
+      ...(_snapMesa || {}),
+      id: _snapId,
+      tipo_entrega: tipoEntregaBanco,
+      endereco_entrega: enderecoFinal,
+      cliente_nome: nomeFinal,
+      cliente_telefone: tel,
+      forma_pagamento: pag,
+      obs_pagamento: obsPagPDV,
+      subtotal: novoTotalSnap,
+      total_geral: novoTotalSnap,
+      frete_cobrado_cliente: 0,
+    }, novosItens);
     alert(`✅ ${novosItens.length} item(s) enviado(s) para a cozinha!`);
     return;
   }
@@ -6347,6 +6416,7 @@ if (error) {
   document.getElementById("balcao-cliente").value = "";
   document.getElementById("balcao-mesa").value = "";
   document.getElementById("balcao-telefone").value = "";
+  localStorage.removeItem('locanda_pdv_tel');
   if (document.getElementById("balcao-endereco"))
     document.getElementById("balcao-endereco").value = "";
   pdvSelecionarTipo("local");
@@ -6361,13 +6431,8 @@ if (error) {
   atualizarCarrinhoPDV();
   atualizarBarraMesasAtivas();
   carregarMonitorMesas();
-  _imprimirPedidoLocal(
-  { ...window._mesaAbertaPedido, cliente_nome: nomeFinal, cliente_telefone: tel, forma_pagamento: pag, obs_pagamento: obsPagPDV },
-  novosItens
-);
-return;
+  _imprimirPedidoLocal(pedidoInserido || pedido, novosItens);
 }
-
 // ── Barra de Mesas Ativas no PDV ─────────────────────────────
 async function atualizarBarraMesasAtivas() {
   const bar = document.getElementById("pdv-mesas-bar");
@@ -6419,8 +6484,10 @@ function abrirMesaExistente(pedido) {
   // Preenche os campos
   const elMesa = document.getElementById("balcao-mesa");
   const elCli = document.getElementById("balcao-cliente");
+  const elTel = document.getElementById("balcao-telefone");
   if (elMesa) elMesa.value = nrMesa;
   if (elCli) elCli.value = nomeCli === "Cliente" ? "" : nomeCli;
+  if (elTel) elTel.value = pedido.cliente_telefone || "";
 
   // ──────────────────────────────────────────────────────────────────
   // MUDANÇA: carrinhoPDV fica VAZIO — só recebe os NOVOS itens.
@@ -6483,6 +6550,10 @@ async function carregarMonitorMesas() {
         '<span class="mesa-monitor-status-cozinha"><i class="fas fa-fire"></i> Na Cozinha</span>';
       acaoHtml = `
     <small class="mesa-monitor-status-cozinha">Aguardando cozinha...</small>
+    <button class="btn btn-sm btn-warning btn-block-pdv" style="margin-top:6px"
+      onclick="cancelarPedidoMonitor(${p.id})">
+      <i class="fas fa-times"></i> Cancelar
+    </button>
     <button class="btn btn-sm btn-info btn-block-pdv" style="margin-top:6px"
       onclick="imprimirPedido(${p.id})">
       <i class="fas fa-print"></i> Imprimir
@@ -6491,9 +6562,27 @@ async function carregarMonitorMesas() {
       cardClass += " mesa-pronta";
       statusHtml =
         '<span class="mesa-monitor-status-pronto"><i class="fas fa-check-circle"></i> PRONTO!</span>';
+
+      // Botão WhatsApp: só aparece se o cliente tem telefone
+      const telCliente = (p.cliente_telefone || "").replace(/\D/g, "");
+      const nrMesaWhats = (p.endereco_entrega || "").replace("Mesa ", "") || p.id;
+      const nomeCliente = (p.cliente_nome || "").replace(/^MESA \d+ - /i, "") || "Cliente";
+      const btnWhats = telCliente.length >= 7
+        ? `<button class="btn btn-sm btn-block-pdv"
+              style="margin-top:6px;background:#25D366;color:#fff;border:none;border-radius:6px;padding:7px;cursor:pointer;font-size:0.82rem;font-weight:700;"
+              onclick="avisarClientePronto('${telCliente}','${nomeCliente.replace(/'/g,"\\'")}','${nrMesaWhats}')">
+              <i class="fab fa-whatsapp"></i> Avisar Cliente
+           </button>`
+        : "";
+
       acaoHtml = `
     <button class="btn btn-sm btn-success btn-block-pdv"
       onclick="finalizarMesa(${p.id})">Entregar / Baixar</button>
+    <button class="btn btn-sm btn-warning btn-block-pdv" style="margin-top:6px"
+      onclick="cancelarPedidoMonitor(${p.id})">
+      <i class="fas fa-times"></i> Cancelar
+    </button>
+    ${btnWhats}
     <button class="btn btn-sm btn-info btn-block-pdv" style="margin-top:6px"
       onclick="imprimirPedido(${p.id})">
       <i class="fas fa-print"></i> Imprimir
@@ -6607,6 +6696,30 @@ async function finalizarMesa(id) {
     carregarMonitorMesas();
     if (typeof calcularFinanceiro === "function") calcularFinanceiro();
   }
+}
+
+// ── Avisa o cliente via WhatsApp que o pedido está pronto ──────────
+function avisarClientePronto(tel, nomeCliente, nrMesa) {
+  const nomeReal = (nomeCliente || '').replace(/^MESA \d+ - /i, '').trim() || 'Cliente';
+  const msg =
+`🍕 *${nomeReal}*
+
+🇪🇸 ¡Su pedido de la Mesa ${nrMesa} está *LISTO*! Pásese a buscarlo. ✅
+🇵🇾 Ne${nrMesa} mesápe oĩ *OGUEREKO*! Eju eheja. ✅
+🇧🇷 Seu pedido da Mesa ${nrMesa} está *PRONTO*! Pode vir buscar. ✅
+
+_Locanda Pizzeria_ 🍕`;
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`, "_blank");
+}
+
+// ── Cancela pedido no monitor de mesas ────────────────────────────
+async function cancelarPedidoMonitor(id) {
+  if (!confirm("Cancelar este pedido? Esta ação não pode ser desfeita.")) return;
+  await supa
+    .from("pedidos")
+    .update({ status: "cancelado" })
+    .eq("id", id);
+  carregarMonitorMesas();
 }
 
 // Utilitários de Modal e Checkbox

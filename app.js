@@ -1388,7 +1388,7 @@ function adicionarDoModal() {
 const precoBorda  = _pizzaConfig.bordaConfig?.preco || 0;
 precoFinal = _calcularBasePizza(tam, saboresOk) + precoBorda;
 
-    variacao  = _pizzaConfig.tamanhoSelecionado?.nome || '';
+    variacao  = 'Pizza ' + (_pizzaConfig.tamanhoSelecionado?.nome || '');
     const numSab = _pizzaConfig.numSabores || 1;
     const saboresStr = saboresOk
       .map((s, i) => numSab > 1 ? `${i+1}/${numSab} ${s.nome}` : s.nome)
@@ -2077,15 +2077,15 @@ async function calcularFrete() {
       const dist = calcularDistancia(COORD_LOJA.lat, COORD_LOJA.lng, localCliente.lat, localCliente.lng);
       
       // === TABELA DE FRETE DINÂMICA (configurada no admin) ===
-      // Faixas: [0-2], [2.1-3.9], [4-6], [6.1-7], ..., [19.1-20], >20 = a combinar
-      const LIMITES_KM = [2, 3.9, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+      // Faixas: até 1.9 | 2-3 | 3.1-4 | 4.1-5 | 5.1-7 | 7.1-9 | 10+
+      const LIMITES_KM = [1.9, 3.0, 4.0, 5.0, 7.0, 9.0, 99999];
       let freteIndex = -1;
       for (let i = 0; i < LIMITES_KM.length; i++) {
         if (dist <= LIMITES_KM[i]) { freteIndex = i; break; }
       }
 
       if (freteIndex === -1) {
-        // Acima de 20km
+        // Fallback de segurança — na prática nunca ocorre com LIMITES_KM[6]=99999
         freteCalculado = -1; // sentinela: a combinar
         msg.innerHTML = `<span style="color:#e67e22">⚠️ Distância: ${dist.toFixed(1)}km — Frete <strong>a combinar</strong> pelo WhatsApp.</span>`;
         msg.style.color = '#e67e22';
