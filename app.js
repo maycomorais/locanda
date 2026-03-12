@@ -1723,7 +1723,7 @@ function aplicarCupom() {
   // Cupons de exemplo - você pode buscar do banco de dados
   const cupons = {
     'BEMVINDO10': { tipo: 'percentual', valor: 10, min: 50000 },
-    'CANTINHO20': { tipo: 'percentual', valor: 20, min: 100000 },
+    'LOCANDA20': { tipo: 'percentual', valor: 20, min: 100000 },
     'FRETEGRATIS': { tipo: 'frete', valor: 0, min: 0 }
   };
   
@@ -2305,7 +2305,7 @@ async function enviarZap() {
   const idDisplay = numeroPedido || 'TEMP';
   
   // 3. Monta Mensagem WhatsApp
-  let msg = `🇧🇷 PEDIDO #${idDisplay} - CANTINHO BRASILEIRO\n`;
+  let msg = `🇧🇷 PEDIDO #${idDisplay} - PIZZERÍA LOCANDA\n`;
   msg += `--------------------------\n`;
   msg += `👤 Cliente: ${nome}\n`;
   msg += `📱 Tel: ${telCompleto}\n`;

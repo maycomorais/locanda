@@ -10,7 +10,7 @@ let audioHabilitado = false; // Controle de permissão do navegador
 
 document.addEventListener("DOMContentLoaded", async () => {
   // Recupera a última aba ou define padrão
-  let lastTab = localStorage.getItem("cantinho_lastTab");
+  let lastTab = localStorage.getItem("locanda_lastTab");
   if (!lastTab || !document.getElementById(lastTab)) {
     lastTab = "pedidos";
   }
@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // === SISTEMA DE AUTO-REFRESH (10 SEGUNDOS) ===
   // Backup caso o Realtime falhe
   setInterval(() => {
-    const abaAtual = localStorage.getItem("cantinho_lastTab");
+    const abaAtual = localStorage.getItem("locanda_lastTab");
     // true = modo silencioso (sem recarregar som se já estiver tocando)
     if (abaAtual === "pedidos") carregarPedidos(true);
     if (abaAtual === "cozinha") carregarCozinha();
@@ -119,7 +119,7 @@ function showTab(tabId, event) {
     realTabId = "pedidos";
   }
 
-  localStorage.setItem("cantinho_lastTab", realTabId);
+  localStorage.setItem("locanda_lastTab", realTabId);
 
   // 2. Reset visual
   document
@@ -211,7 +211,7 @@ function iniciarRealtime() {
         }
         // Atualiza tela — silencioso=true em updates para não re-tocar alarme
         const silencioso = payload.eventType === "UPDATE";
-        const abaAtual = localStorage.getItem("cantinho_lastTab");
+        const abaAtual = localStorage.getItem("locanda_lastTab");
         if (abaAtual === "pedidos") carregarPedidos(silencioso);
         if (abaAtual === "cozinha") carregarCozinha();
         if (abaAtual === "dashboard") carregarDashboard();
@@ -671,7 +671,7 @@ async function mudarStatus(id, novoStatus) {
 
   if (typeof pararAlarme === "function") pararAlarme();
 
-  const abaAtual = localStorage.getItem("cantinho_lastTab");
+  const abaAtual = localStorage.getItem("locanda_lastTab");
   if (abaAtual === "cozinha") carregarCozinha();
   else if (abaAtual === "pedidos") carregarPedidos();
   else if (abaAtual === "pdv") carregarMonitorMesas();
