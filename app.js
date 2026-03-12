@@ -1446,6 +1446,7 @@ precoFinal = _calcularBasePizza(tam, saboresOk) + precoBorda;
     montagem: montagem.filter(Boolean),
     obs:      document.getElementById('modal-obs').value,
     img:      prodAtual._variacaoImg || prodAtual.img,
+    categoria_slug: prodAtual.categoria_slug || '', // para filtro de bebidas na rota do motoboy
     ...(pizzaMeta ? { pizzaMeta } : {}),
   });
 

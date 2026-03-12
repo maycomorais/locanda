@@ -1014,8 +1014,8 @@ async function calcularFinanceiro() {
       totalEfetivo += valorPedido;
 
     if (p.tipo_entrega === "delivery") {
-      custoEntregas +=
-        typeof TAXA_MOTOBOY !== "undefined" ? TAXA_MOTOBOY : 5000;
+      // Usa o frete_motoboy real salvo no pedido; fallback para TAXA_MOTOBOY
+      custoEntregas += p.frete_motoboy || (typeof TAXA_MOTOBOY !== "undefined" ? TAXA_MOTOBOY : 5000);
       const nomeMoto = p.motoboys?.nome || "Sem Motoboy";
       if (!motoMap[nomeMoto]) {
         motoMap[nomeMoto] = 0;
@@ -1090,6 +1090,8 @@ async function calcularFinanceiro() {
           typeof TAXA_MOTOBOY !== "undefined" ? TAXA_MOTOBOY : 5000;
         const combustivel =
           typeof AJUDA_COMBUSTIVEL !== "undefined" ? AJUDA_COMBUSTIVEL : 20000;
+        // Nota: totalEntregas usa taxa fixa pois motoMap não guarda por-pedido
+        // Para precisão máxima, o frete_motoboy real já é contabilizado em custoEntregas
         const totalEntregas = qtd * taxaMoto;
         const totalMoto = totalEntregas + combustivel; // combustível: 1x por motoboy por dia
         tbodyMoto.innerHTML += `
@@ -1714,7 +1716,8 @@ function enviarRotaZap() {
       }
 
       msg += `-----------------\n`;
-      taxaTotal += typeof TAXA_MOTOBOY !== "undefined" ? TAXA_MOTOBOY : 5000;
+      // Usa o frete_motoboy real salvo no pedido; fallback para TAXA_MOTOBOY
+      taxaTotal += p.frete_motoboy || (typeof TAXA_MOTOBOY !== "undefined" ? TAXA_MOTOBOY : 5000);
     } catch (e) {
       console.error("Erro ao processar pedido na rota:", e);
     }
@@ -4445,7 +4448,7 @@ function _renderTabelaFrete(savedData) {
 
 async function salvarTabelaFrete() {
   const tabela = [];
-  FRETE_FAIXAS.forEach((_, idx) => {
+  FRETE_FAIXAS.forEach((faixa, idx) => {
     const combinado =
       document.querySelector(`.frete-combinar[data-idx="${idx}"]`)?.checked ||
       false;
