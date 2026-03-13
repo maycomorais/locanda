@@ -507,6 +507,7 @@ async function renderMenu() {
       montagem: p.montagem_config,
       e_montavel: p.e_montavel,
       subcategoria_slug: sub || null,
+      categoria_slug: cat || '',
     };
 
     if (sub) {
@@ -836,8 +837,13 @@ function _renderMontavel(item, cfg, container) {
 // ═══════════════════════════════════════════════════════════
 
 function _renderPizza(cfg, container) {
-  if (!cfg || !cfg.pizza) return;
-  const p = cfg.pizza;
+  if (!cfg) return;
+  // Suporta formato antigo (flat: { __tipo, tamanhos, sabores }) e novo (nested: { __tipo, pizza: {...} })
+  const p = cfg.pizza || (cfg.tamanhos ? cfg : null);
+  if (!p || (!p.tamanhos && !p.sabores)) {
+    container.innerHTML = '<p style="color:#e74c3c;padding:10px;text-align:center">⚠️ Pizza não configurada ainda.<br>Configure tamanhos e sabores no painel admin.</p>';
+    return;
+  }
   _pizzaConfig.p = p;
 
   /* ── PASSO 1: Tamanho ─────────────────────────────── */
@@ -1168,7 +1174,9 @@ function _atualizarPrecoPizza() {
     return;
   }
 
-  if (!cfg || !cfg.pizza) {
+  // Suporta formato antigo (flat) e novo (nested .pizza)
+  const pizzaCfg = cfg && (cfg.pizza || (cfg.tamanhos ? cfg : null));
+  if (!pizzaCfg) {
     const base = (prodAtual?.preco || 0);
     const total = (base + extrasTotal) * qtd;
     document.getElementById('modal-price').innerText = `Gs ${total.toLocaleString('es-PY')}`;
@@ -1388,14 +1396,22 @@ function adicionarDoModal() {
 const precoBorda  = _pizzaConfig.bordaConfig?.preco || 0;
 precoFinal = _calcularBasePizza(tam, saboresOk) + precoBorda;
 
-    variacao  = 'Pizza ' + (_pizzaConfig.tamanhoSelecionado?.nome || '');
-    const numSab = _pizzaConfig.numSabores || 1;
+    variacao  = 'Pizza ' + (_pizzaConfig.tamanhoSelecionado?.nome || '').trim();
+    const numSab = _pizzaConfig.numSabores || saboresOk.length || 1;
     const saboresStr = saboresOk
-      .map((s, i) => numSab > 1 ? `${i+1}/${numSab} ${s.nome}` : s.nome)
+      .map((s, i) => {
+        const nomeSabor = (s.nome || '').trim();
+        if (!nomeSabor) return null;
+        return numSab > 1 ? `${i+1}/${numSab} ${nomeSabor}` : nomeSabor;
+      })
+      .filter(Boolean)
       .join(' | ');
 
     // montagem: string legível para exibição no carrinho/cozinha
-    montagem = [saboresStr].filter(Boolean);
+    // Se saboresStr ficou vazio (nomes em branco no banco), usa fallback genérico
+    montagem = saboresStr
+      ? [saboresStr]
+      : saboresOk.length > 0 ? [`${saboresOk.length} sabor(es)`] : [];
     if (_pizzaConfig.bordaConfig) montagem.push(`Borda: ${_pizzaConfig.bordaConfig.nome}`);
   }
 
