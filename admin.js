@@ -5272,13 +5272,12 @@ function _pdvModalAtualizarPreco() {
 // ── Pizza ──────────────────────────────────────────────────────────────────────
 function _pdvRenderPizza(container) {
   const cfg = _pdvModalState.cfg;
-  // Suporta formato antigo (flat) e novo (nested .pizza)
-  const p = cfg && (cfg.pizza || (cfg.tamanhos ? cfg : null));
-  if (!p || (!p.tamanhos && !p.sabores)) {
+  if (!cfg || !cfg.pizza) {
     container.innerHTML =
-      '<p style="color:#e74c3c;padding:10px;text-align:center">⚠️ Pizza não configurada.<br>Edite o produto e adicione tamanhos e sabores.</p>';
+      '<p style="color:#aaa">Configuração de pizza não encontrada.</p>';
     return;
   }
+  const p = cfg.pizza;
   _pdvModalState.pizza = {
     p,
     tamanhoSelecionado: null,
@@ -5708,19 +5707,13 @@ function _pdvModalConfirmar() {
     const tam = st.pizza.tamanhoSelecionado;
     preco =
       _calcularBasePizza(tam, saboresOk) + (st.pizza.bordaConfig?.preco || 0);
-    variacao = (st.pizza.tamanhoSelecionado.nome || '').trim();
-    const n = st.pizza.numSabores || saboresOk.length || 1;
-    const saboresStr = saboresOk
-      .map((s, i) => {
-        const nomeSabor = (s.nome || '').trim();
-        if (!nomeSabor) return null;
-        return n > 1 ? `${i + 1}/${n} ${nomeSabor}` : nomeSabor;
-      })
-      .filter(Boolean)
-      .join(" | ");
-    montagem = saboresStr
-      ? [saboresStr]
-      : saboresOk.length > 0 ? [`${saboresOk.length} sabor(es)`] : [];
+    variacao = st.pizza.tamanhoSelecionado.nome;
+    const n = st.pizza.numSabores || 1;
+    montagem = [
+      saboresOk
+        .map((s, i) => (n > 1 ? `${i + 1}/${n} ${s.nome}` : s.nome))
+        .join(" | "),
+    ].filter(Boolean);
     if (st.pizza.bordaConfig)
       montagem.push(`Borda: ${st.pizza.bordaConfig.nome}`);
   } else if (st.tipo === "shake") {
