@@ -9,7 +9,7 @@ let autoConfirmTimer = null;
 // DADOS DE PAGAMENTO (Pix e Alias)
 const CHAVE_PIX = 'thomaz719@gmail.com';
 const NOME_PIX = 'Thomaz Victor Sousa dos Anjos';
-const DADOS_ALIAS = '9356779';         // Transferência Banco Ueno
+const DADOS_ALIAS = '595981279380';         // Transferência Banco Ueno
 const ALIAS_PY = 'Thomaz Victor Sousa dos Anjos';  // Titular Banco Ueno
 
 function iniciarTimerAutoConfirmacao(pedidoId) {
