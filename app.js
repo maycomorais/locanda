@@ -156,10 +156,29 @@ function mostrarMensagemEntregaConfirmada() {
 // ===== ATUALIZAR FUNÇÃO mostrarTracker() EXISTENTE =====
 // SUBSTITUA a função mostrarTracker() por esta versão atualizada:
 
-function mostrarTracker(status, uidPedido) {
-    // Usa o novo sistema de tracking (track-order-card)
-    // O elemento 'pedido-tracker' é do sistema antigo — redireciona para o novo
-    atualizarTrackingVisual(status, null);
+async function mostrarTracker(status, uidPedido) {
+    // Fix #9: busca dados do motoboy do banco antes de atualizar o visual
+    let motoboy = null;
+    try {
+        const pedidoId = localStorage.getItem('locanda_pedido_id');
+        if (pedidoId && (status === 'saiu_entrega' || status === 'entregue')) {
+            const { data: p } = await supa
+                .from('pedidos')
+                .select('motoboy_id')
+                .eq('id', pedidoId)
+                .single();
+            if (p && p.motoboy_id) {
+                const { data: m } = await supa
+                    .from('motoboys')
+                    .select('nome, telefone')
+                    .eq('id', p.motoboy_id)
+                    .single();
+                motoboy = m || null;
+            }
+        }
+    } catch (_) { /* falha silenciosa */ }
+
+    atualizarTrackingVisual(status, motoboy);
     
     const card = document.getElementById('track-order-card');
     if (card) card.style.display = 'block';
@@ -230,9 +249,9 @@ let DATA_AGENDAMENTO = null; // Data/hora do agendamento
 let MENU = {
   promocoes_do_dia: [],
   pratos_especiais: [],
-  temakis: [],
+  pizzas: [],
   pratos_quentes: [],
-  pokes: [],
+  sobremesas: [],
   bebidas: [],
   upsell: [],
 };
@@ -258,6 +277,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // 5. Carrega extras globais (adicionais que aparecem em todos os produtos)
   await carregarExtrasGlobais();
+
+  // Restaura backup do carrinho APÓS o menu estar pronto (fix #13)
+  restaurarCarrinhoBackup();
 
   const overlay = document.getElementById('loading-overlay');
     if (overlay) {
@@ -311,6 +333,39 @@ async function verificarHorario() {
 
   if (data.cotacao_real) COTACAO_REAL = data.cotacao_real;
   if (data.tabela_frete && Array.isArray(data.tabela_frete)) TABELA_FRETE = data.tabela_frete;
+
+  // Fix #73: se admin fechou delivery manualmente, força loja fechada
+  if (data.delivery_aberto === false) {
+    const badge = document.querySelector('.badge-status');
+    if (badge) {
+      const lang = localStorage.getItem('language') || 'es';
+      const fechados = { es:'Cerrado', pt:'Fechado', en:'Closed', de:'Geschlossen' };
+      badge.innerText = fechados[lang] || 'Cerrado';
+      badge.classList.remove('open');
+      badge.classList.add('closed');
+    }
+    if (data.aviso_delivery) {
+      let aviso = document.getElementById('aviso-delivery-admin');
+      if (!aviso) {
+        aviso = document.createElement('div');
+        aviso.id = 'aviso-delivery-admin';
+        aviso.style.cssText = 'background:#fff3cd;border:1.5px solid #f0a500;border-radius:10px;padding:12px 16px;margin:12px 20px;font-size:0.9rem;font-weight:600;color:#856404;text-align:center';
+        const nav = document.getElementById('category-nav');
+        if (nav && nav.parentElement) nav.parentElement.insertBefore(aviso, nav);
+      }
+      aviso.textContent = '⚠️ ' + data.aviso_delivery;
+      aviso.style.display = 'block';
+    }
+    return; // loja forçada fechada — encerra verificação
+  }
+
+  // Fix #74: extensão temporária de horário configurada pelo admin
+  if (data.horario_extra_hoje) {
+    const hoje = new Date().toISOString().split('T')[0];
+    if (data.horario_extra_hoje.data === hoje && data.horario_extra_hoje.minutos > 0) {
+      EXTENSAO_HORARIO_TEMP = data.horario_extra_hoje.minutos;
+    }
+  }
 
   const agora = new Date();
   const horaAtual = agora.getHours() * 60 + agora.getMinutes();
@@ -376,18 +431,15 @@ async function verificarHorario() {
       }
   }
 
-  // Atualiza Banner Promocional
+  // Atualiza Banner Promocional — Fix #48: atribui onclick nos imgs, não no container
   if (data.banner_imagem && data.banner_produto_id) {
-    const bannerArea = document.querySelector('.banner-area');
-    if (bannerArea) {
-      const img = bannerArea.querySelector('img');
-      if (img) img.src = data.banner_imagem;
-      
-      bannerArea.onclick = function () {
-        clicarBanner(data.banner_produto_id);
-      };
+    const img1 = document.getElementById('banner-img-1');
+    if (img1) {
+      img1.src = data.banner_imagem;
+      img1.onclick = function () { clicarBanner(data.banner_produto_id); };
     }
   }
+  // banner-img-2 mantém clique padrão desabilitado até ser configurado no admin
   
   // Aplica personalização visual se existir
   if (data.nome_loja) {
@@ -784,7 +836,7 @@ function _atualizarPrecoShake() {
   const tamPreco = _shakeConfig.tamanhoSelecionado?.preco || 0;
   const saborExtra = _shakeConfig.saborSelecionado?.preco || 0;
   const total = tamPreco + saborExtra;
-  const el = document.getElementById('product-price');
+  const el = document.getElementById('modal-price');
   if (el && total > 0) el.textContent = 'Gs ' + total.toLocaleString('es-PY');
 }
 
@@ -1335,26 +1387,13 @@ function adicionarDoModal() {
   if (cfg && !Array.isArray(cfg) && cfg.__tipo) tipo = cfg.__tipo;
   else if (prodAtual.e_montavel || (cfg && Array.isArray(cfg) && cfg.length > 0)) tipo = 'montavel';
 
-  // Validações por tipo
+  // Validações por tipo — cada tipo tem seu próprio bloco (fix #3)
+  if (tipo === 'shake') {
+    if (!_shakeConfig.tamanhoSelecionado) { alert('Escolha um tamanho para o Shake!'); return; }
+    if (!_shakeConfig.saborSelecionado)   { alert('Escolha um sabor para o Shake!');   return; }
+  }
   if (tipo === 'pizza') {
     if (!_pizzaConfig.tamanhoSelecionado) { alert('Selecione o tamanho da pizza!'); return; }
-    // Shake
-    if (tipo === 'shake') {
-      const tamPreco = _shakeConfig.tamanhoSelecionado?.preco || 0;
-      const saborExtra = _shakeConfig.saborSelecionado?.preco || 0;
-      precoFinal = tamPreco + saborExtra;
-      variacao = [_shakeConfig.tamanhoSelecionado?.nome, _shakeConfig.saborSelecionado?.nome].filter(Boolean).join(' – ');
-      montagem = variacao ? [variacao] : [];
-      if (!_shakeConfig.tamanhoSelecionado) {
-        alert('Escolha um tamanho para o Milk Shake.');
-        return;
-      }
-      if (!_shakeConfig.saborSelecionado) {
-        alert('Escolha um sabor para o Milk Shake.');
-        return;
-      }
-    }
-
     const saboresOk = (_pizzaConfig.sabores || []).filter(Boolean);
     if (saboresOk.length === 0) { alert('Selecione ao menos 1 sabor!'); return; }
     if (_pizzaConfig.numSabores && saboresOk.length < _pizzaConfig.numSabores) {
@@ -1413,6 +1452,16 @@ precoFinal = _calcularBasePizza(tam, saboresOk) + precoBorda;
       ? [saboresStr]
       : saboresOk.length > 0 ? [`${saboresOk.length} sabor(es)`] : [];
     if (_pizzaConfig.bordaConfig) montagem.push(`Borda: ${_pizzaConfig.bordaConfig.nome}`);
+  }
+
+  // Shake: monta preço, variação e descrição corretamente (fix #3)
+  if (tipo === 'shake') {
+    const tamPreco  = _shakeConfig.tamanhoSelecionado?.preco || 0;
+    const sabPreco  = _shakeConfig.saborSelecionado?.preco  || 0;
+    precoFinal = tamPreco + sabPreco;
+    variacao   = [_shakeConfig.tamanhoSelecionado?.nome,
+                  _shakeConfig.saborSelecionado?.nome].filter(Boolean).join(' – ');
+    montagem   = variacao ? [variacao] : [];
   }
 
   if (tipo === 'almoco' && prodAtual._pratoselecionado) {
@@ -1726,44 +1775,8 @@ function adicionarUpsell(item) {
 // ==========================================
 // CUPOM DE DESCONTO
 // ==========================================
-function aplicarCupom() {
-  const codigo = document.getElementById('cupom-codigo')?.value?.trim().toUpperCase();
-  const msgBox = document.getElementById('cupom-msg');
-  
-  if (!codigo) {
-    msgBox.innerHTML = '<span style="color:#e74c3c">Digite um código</span>';
-    msgBox.style.display = 'block';
-    return;
-  }
-  
-  // Cupons de exemplo - você pode buscar do banco de dados
-  const cupons = {
-    'BEMVINDO10': { tipo: 'percentual', valor: 10, min: 50000 },
-    'LOCANDA20': { tipo: 'percentual', valor: 20, min: 100000 },
-    'FRETEGRATIS': { tipo: 'frete', valor: 0, min: 0 }
-  };
-  
-  const cupom = cupons[codigo];
-  
-  if (!cupom) {
-    msgBox.innerHTML = '<span style="color:#e74c3c">❌ Cupom inválido</span>';
-    msgBox.style.display = 'block';
-    cupomAplicado = null;
-  } else {
-    const subtotal = carrinho.reduce((a, i) => a + i.preco * i.qtd, 0);
-    if (subtotal < cupom.min) {
-      msgBox.innerHTML = `<span style="color:#e74c3c">Valor mínimo: Gs ${cupom.min.toLocaleString('es-PY')}</span>`;
-      msgBox.style.display = 'block';
-      cupomAplicado = null;
-    } else {
-      cupomAplicado = { codigo, ...cupom };
-      msgBox.innerHTML = '<span style="color:#27ae60">✅ Cupom aplicado!</span>';
-      msgBox.style.display = 'block';
-    }
-  }
-  
-  atualizarTotalCheckout();
-}
+// aplicarCupom() — versão async que busca do banco está abaixo (~linha 2765)
+// A versão síncrona com cupons hardcoded foi removida (bug #1)
 
 function atualizarTotalCheckout() {
   const totalItens = carrinho.reduce((a, i) => a + i.preco * i.qtd, 0);
@@ -2220,7 +2233,7 @@ async function enviarZap() {
     const somaPartes = partes.reduce((s, p) => s + p.valor, 0);
     const totalCheck = carrinho.reduce((a, i) => a + i.preco * i.qtd, 0)
                        - (cupomAplicado?.tipo === 'percentual' ? Math.round(carrinho.reduce((a,i)=>a+i.preco*i.qtd,0) * (cupomAplicado.valor/100)) : 0)
-                       + (modoEntrega === 'delivery' ? (cupomAplicado?.tipo === 'frete' ? 0 : freteCalculado) : 0);
+                       + (modoEntrega === 'delivery' ? (cupomAplicado?.tipo === 'frete' ? 0 : Math.max(0, freteCalculado)) : 0);
     if (Math.abs(somaPartes - totalCheck) > 1) {
       return alert(`A soma dos pagamentos (Gs ${somaPartes.toLocaleString('es-PY')}) não confere com o total do pedido (Gs ${totalCheck.toLocaleString('es-PY')}). Ajuste os valores.`);
     }
@@ -2518,28 +2531,42 @@ function _abrirZapEFechar(msg, numeroPedido, modal, resolve) {
 // 9. DADOS LOCAIS & REPETIR PEDIDO (Funções Restauradas)
 // ==========================================
 function carregarDadosLocal() {
-  const user = JSON.parse(localStorage.getItem('locanda_user'));
-  if (user) {
-    if (document.getElementById('cli-nome')) document.getElementById('cli-nome').value = user.nome;
-    if (document.getElementById('cli-tel')) document.getElementById('cli-tel').value = user.tel;
+  try {
+    const user = JSON.parse(localStorage.getItem('locanda_user') || 'null');
+    if (user) {
+      if (document.getElementById('cli-nome')) document.getElementById('cli-nome').value = user.nome || '';
+      if (document.getElementById('cli-tel')) document.getElementById('cli-tel').value = user.tel || '';
+    }
+  } catch (e) {
+    console.warn('Dados de usuário corrompidos no localStorage:', e);
+    localStorage.removeItem('locanda_user');
   }
 
-  const last = JSON.parse(localStorage.getItem('locanda_last'));
-  const box = document.getElementById('buy-again-container');
+  try {
+    const last = JSON.parse(localStorage.getItem('locanda_last') || 'null');
+    const box = document.getElementById('buy-again-container');
 
-  if (last && Array.isArray(last) && last.length > 0) {
-    if (box) {
-      box.style.display = 'block';
-      const ul = document.getElementById('last-order-list');
-      if (ul) {
-        ul.innerHTML = '';
-        last.forEach((i) => {
-          ul.innerHTML += `<li style="border-bottom: 1px dashed #eee; padding: 5px 0;"><b>${i.qtd}x</b> ${i.nome}</li>`;
-        });
+    if (last && Array.isArray(last) && last.length > 0) {
+      if (box) {
+        box.style.display = 'block';
+        const ul = document.getElementById('last-order-list');
+        if (ul) {
+          ul.innerHTML = '';
+          last.forEach((i) => {
+            const li = document.createElement('li');
+            li.style.cssText = 'border-bottom:1px dashed #eee;padding:5px 0';
+            li.innerHTML = `<b>${i.qtd}x</b> `;
+            li.appendChild(document.createTextNode(i.nome || ''));
+            ul.appendChild(li);
+          });
+        }
       }
+    } else {
+      if (box) box.style.display = 'none';
     }
-  } else {
-    if (box) box.style.display = 'none';
+  } catch (e) {
+    console.warn('Último pedido corrompido no localStorage:', e);
+    localStorage.removeItem('locanda_last');
   }
 }
 
@@ -2585,7 +2612,7 @@ const TRACKER_STEPS = {
     'em_preparo':     { step: 2, icon: '🔥', msg: 'Seu pedido está sendo preparado!' },
     'pronto_entrega': { step: 3, icon: '📦', msg: 'Pronto! Aguardando motoboy...' },
     'saiu_entrega':   { step: 3, icon: '🛵', msg: 'Seu pedido saiu para entrega!' },
-    'entregue':       { step: 4, icon: '✅', msg: 'Pedido entregue! Bom apetite! 🍣' },
+    'entregue':       { step: 4, icon: '✅', msg: 'Pedido entregue! Bom apetite! 🍕' },
     'cancelado':      { step: 0, icon: '❌', msg: 'Pedido cancelado. Entre em contato conosco.' },
 };
 
@@ -2662,7 +2689,7 @@ function _tentarCanalRealtime(pedidoId, uid) {
     try {
         if (_trackingChannel) { _trackingChannel.unsubscribe(); _trackingChannel = null; }
         _trackingChannel = supa
-            .channel(`sushi-track-${pedidoId}-${Date.now()}`)
+            .channel(`pizzeria-track-${pedidoId}-${Date.now()}`)
             .on('postgres_changes', {
                 event: 'UPDATE', schema: 'public', table: 'pedidos',
                 filter: `id=eq.${pedidoId}`
@@ -2813,8 +2840,10 @@ async function aplicarCupom() {
     }
     
     const subtotal = carrinho.reduce((a, i) => a + i.preco * i.qtd, 0);
-    if (subtotal < cupom.minimo) {
-        msgBox.innerHTML = `<span style="color:#e74c3c">Valor mínimo: Gs ${cupom.minimo.toLocaleString('es-PY')}</span>`;
+    // Fix #41: tratar minimo NULL como 0 (sem valor mínimo exigido)
+    const minimoExigido = parseFloat(cupom.minimo) || 0;
+    if (minimoExigido > 0 && subtotal < minimoExigido) {
+        msgBox.innerHTML = `<span style="color:#e74c3c">Valor mínimo: Gs ${minimoExigido.toLocaleString('es-PY')}</span>`;
         msgBox.style.display = 'block';
         cupomAplicado = null;
     } else {
@@ -3139,6 +3168,38 @@ function toggleSaborPizza(saborObj, maxSabores) {
 // ==========================================
 // DETECÇÃO DE CONEXÃO
 // ==========================================
+// ==========================================
+// TOAST — NOTIFICAÇÕES VISUAIS (Bug #4 fix)
+// ==========================================
+function mostrarToast(msg, tipo = 'info', duracao = 3000) {
+  const CORES = {
+    success: '#27ae60',
+    warning: '#e67e22',
+    error:   '#e74c3c',
+    info:    '#2980b9'
+  };
+  const existing = document.getElementById('locanda-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'locanda-toast';
+  toast.style.cssText = [
+    'position:fixed;bottom:90px;left:50%;transform:translateX(-50%)',
+    'background:' + (CORES[tipo] || CORES.info),
+    'color:white;padding:12px 22px;border-radius:10px',
+    'z-index:99999;font-weight:600;font-size:0.9rem',
+    'box-shadow:0 4px 14px rgba(0,0,0,0.25)',
+    'max-width:90vw;text-align:center',
+    'transition:opacity 0.3s'
+  ].join(';');
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, duracao);
+}
+
 function initDeteccaoConexao() {
   // Mostra alerta quando fica offline
   window.addEventListener('offline', () => {
@@ -3205,7 +3266,8 @@ function restaurarCarrinhoBackup() {
 // Salva carrinho a cada mudança
 setInterval(salvarCarrinhoLocal, 5000); // A cada 5 segundos
 
-// Tenta restaurar carrinho ao carregar
-setTimeout(restaurarCarrinhoBackup, 1000);
+// Bug #13 fix: Não disparar confirm() no meio do render assíncrono do menu.
+// restaurarCarrinhoBackup() agora é chamada após renderMenu() no DOMContentLoaded.
+// O setTimeout foi removido daqui.
 
 // ==========================================

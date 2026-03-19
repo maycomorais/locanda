@@ -6,51 +6,82 @@
     <title>Login - Locanda Pizzeria Admin</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Rubik', sans-serif; background: #f4f6f8; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
-        input { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background: #1a7a2e; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .error { color: red; font-size: 0.9rem; display: none; margin-bottom: 10px; }
+        body { font-family:'Rubik',sans-serif; background:linear-gradient(135deg,#1a252f 0%,#1a7a2e 100%); display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
+        .login-card { background:white; padding:40px; border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,0.3); width:100%; max-width:400px; text-align:center; }
+        .login-card h2 { margin:0 0 6px; color:#1a252f; font-size:1.5rem; }
+        .subtitulo { color:#888; font-size:0.85rem; margin-bottom:24px; }
+        .field { text-align:left; margin-bottom:16px; }
+        .field label { display:block; font-size:0.82rem; font-weight:600; color:#555; margin-bottom:5px; }
+        input[type="email"], input[type="password"] { width:100%; padding:14px 16px; border:1.5px solid #ddd; border-radius:8px; box-sizing:border-box; font-size:1rem; transition:border-color 0.2s; outline:none; }
+        input:focus { border-color:#1a7a2e; box-shadow:0 0 0 3px rgba(26,122,46,0.1); }
+        button { width:100%; padding:15px; background:#1a7a2e; color:white; border:none; border-radius:8px; font-weight:700; font-size:1rem; cursor:pointer; transition:background 0.2s; margin-top:4px; }
+        button:hover:not(:disabled) { background:#155c24; }
+        button:disabled { background:#aaa; cursor:not-allowed; }
+        .error { color:#e74c3c; font-size:0.88rem; display:none; margin-bottom:14px; padding:10px 14px; background:#ffeaea; border-radius:8px; border:1px solid #f5c6c6; text-align:left; }
     </style>
-<base target="_blank">
 </head>
 <body>
     <div class="login-card">
-        <h2>Locanda Pizzeria 🍕</h2>
+        <h2>🍕 Locanda Pizzeria</h2>
+        <p class="subtitulo">Painel Administrativo</p>
         <div id="msg-erro" class="error"></div>
-        <input type="email" id="email" placeholder="Email">
-        <input type="password" id="senha" placeholder="Senha">
-        <button onclick="fazerLogin()">ENTRAR</button>
+        <div class="field">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="seu@email.com" autocomplete="username">
+        </div>
+        <div class="field">
+            <label for="senha">Senha</label>
+            <input type="password" id="senha" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button id="btn-entrar" onclick="fazerLogin()">ENTRAR</button>
     </div>
-
     <script src="supabaseClient.js"></script>
-
     <script>
-        async function fazerLogin() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('senha').value;
-            const msg = document.getElementById('msg-erro');
+        // Suporte a tecla Enter nos campos
+        document.getElementById('email').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') document.getElementById('senha').focus();
+        });
+        document.getElementById('senha').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') fazerLogin();
+        });
 
-            // Verifica se a conexão existe
-            if(!window.supa) {
-                alert("Erro: Banco de dados não conectado. Verifique o console.");
+        async function fazerLogin() {
+            const email    = document.getElementById('email').value.trim();
+            const password = document.getElementById('senha').value;
+            const msg      = document.getElementById('msg-erro');
+            const btn      = document.getElementById('btn-entrar');
+            msg.style.display = 'none';
+            if (!email || !password) {
+                msg.innerText = 'Preencha email e senha.';
+                msg.style.display = 'block';
                 return;
             }
-
+            if (!window.supa) {
+                msg.innerText = 'Erro: Banco de dados não conectado. Verifique o console.';
+                msg.style.display = 'block';
+                return;
+            }
+            btn.disabled = true;
+            btn.innerText = 'Entrando...';
             try {
-                // NOTA: Usamos 'supa' aqui
                 const { data, error } = await supa.auth.signInWithPassword({ email, password });
-
                 if (error) {
-                    msg.innerText = "Erro: " + error.message;
+                    const msgs = {
+                        'Invalid login credentials': 'Email ou senha incorretos.',
+                        'Email not confirmed': 'Email não confirmado. Verifique sua caixa de entrada.',
+                    };
+                    msg.innerText = msgs[error.message] || ('Erro: ' + error.message);
                     msg.style.display = 'block';
                 } else {
                     window.location.href = 'admin.html';
                 }
             } catch (err) {
                 console.error(err);
-                msg.innerText = "Erro inesperado.";
+                msg.innerText = 'Erro inesperado. Tente novamente.';
                 msg.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'ENTRAR';
             }
         }
     </script>

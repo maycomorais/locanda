@@ -100,13 +100,7 @@ body {
     margin-bottom: 30px;
 }
 
-.kpi-card {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    text-align: center;
-}
+/* .kpi-card — ver definição abaixo */
 .kpi-title { font-size: 0.9rem; color: #7f8c8d; margin-bottom: 5px; }
 .kpi-value { font-size: 1.5rem; font-weight: bold; color: var(--dark); }
 .kpi-green { color: #27ae60; }
@@ -182,43 +176,15 @@ tr:hover { background: #f9f9f9; }
 .cozinha-vermelha { border-left-color: #e74c3c; }
 .timer-badge { font-size: 1.1rem; font-weight: bold; color: #333; }
 
-/* --- MODAIS MODERNOS --- */
-.modal-overlay {
-    display: none; 
-    position: fixed; 
-    top: 0; 
-    left: 0; 
-    width: 100%; 
-    height: 100%;
-    background: rgba(0,0,0,0.7); 
-    z-index: 2000;
-    justify-content: center; 
-    align-items: center;
-    backdrop-filter: blur(4px);
-    animation: fadeIn 0.2s ease;
-}
-
-.modal-overlay.active {
-    display: flex !important;
-}
+/* --- MODAIS --- */
+.modal-overlay.active { display: flex !important; }
 
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
 }
 
-.modal-content {
-    background: white; 
-    padding: 30px; 
-    border-radius: 16px; 
-    width: 90%;
-    max-width: 600px;
-    max-height: 85vh; 
-    overflow-y: auto; 
-    position: relative;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
+/* .modal-content — ver definição abaixo */
 
 @keyframes slideUp {
     from {
@@ -240,25 +206,7 @@ tr:hover { background: #f9f9f9; }
     font-weight: 700;
 }
 
-.close-modal {
-    position: absolute; 
-    top: 15px; 
-    right: 15px; 
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: none;
-    background: #f0f0f0;
-    color: #666;
-    font-size: 24px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-}
+/* .close-modal — ver definição abaixo */
 
 .close-modal:hover {
     background: #e74c3c;
@@ -373,66 +321,22 @@ textarea.form-control {
 }
 
 /* Modal Footer Moderno */
-.modal-footer-modern {
-    display: flex;
-    gap: 12px;
-    margin-top: 25px;
-    padding-top: 20px;
-    border-top: 2px solid #f0f0f0;
-}
+/* .modal-footer-modern — ver definição abaixo */
 
-.btn-modern {
-    flex: 1;
-    padding: 14px 20px;
-    border: none;
-    border-radius: 10px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
+/* .btn-modern — ver definição abaixo */
 
-.btn-modern-primary {
-    background: linear-gradient(135deg, var(--primary) 0%, #155c24 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(255, 68, 31, 0.3);
-}
+/* .btn-modern-primary — ver definição abaixo */
 
-.btn-modern-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255, 68, 31, 0.4);
-}
+/* .btn-modern-primary:hover — ver definição abaixo */
 
-.btn-modern-cancel {
-    background: #ecf0f1;
-    color: #7f8c8d;
-}
+/* .btn-modern-cancel — ver definição abaixo */
 
-.btn-modern-cancel:hover {
-    background: #bdc3c7;
-    color: #2c3e50;
-}
+/* .btn-modern-cancel:hover — ver definição abaixo */
 
 /* Input Moderno */
-.input-modern {
-    width: 100%;
-    padding: 12px 16px;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    transition: all 0.3s ease;
-    background: white;
-}
+/* .input-modern — ver definição abaixo */
 
-.input-modern:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(255, 68, 31, 0.1);
-}
+/* .input-modern:focus — ver definição abaixo */
 
 /* Select Moderno */
 select.form-control, select.input-modern {
@@ -478,10 +382,15 @@ select.form-control, select.input-modern {
 /* old removed */
 
 .modal-overlay {
-    z-index: 10000 !important; /* Garante que fique acima de tudo */
-    align-items: flex-start !important; /* Começa do topo */
+    display: none;                  /* CRÍTICO — oculto por padrão */
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.62);
+    z-index: 10000;
+    justify-content: center;
+    align-items: flex-start;
     padding-top: 20px;
-    overflow-y: auto; 
+    overflow-y: auto;
 }
 
 .modal-content {
@@ -688,44 +597,11 @@ select.form-control, select.input-modern {
     border-radius: 4px;
     font-weight: bold;
 }
-.pdv-card-overlay {
-    position: absolute;
-    bottom: 0; left: 0;
-    width: 100%;
-    background: linear-gradient(transparent, rgba(0,0,0,0.78));
-    color: white;
-    padding: 5px 4px 6px;
-    font-size: 0.7rem;
-    text-align: center;
-    font-weight: 600;
-    line-height: 1.2;
-    word-break: break-word;
-}
+/* .pdv-card-overlay — ver definição abaixo */
 
-.pdv-cat-header {
-    padding: 4px 0 6px;
-    font-weight: 700;
-    font-size: 0.73rem;
-    color: #888;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    margin-top: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.pdv-cat-header::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: #eee;
-}
-.pdv-cat-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 8px;
-    margin-bottom: 6px;
-}
+/* .pdv-cat-header — ver definição abaixo */
+/* .pdv-cat-header::after — ver definição abaixo */
+/* .pdv-cat-row — ver definição abaixo */
 
 /* COLUNA DIREITA — Carrinho */
 .pdv-carrinho {
@@ -800,14 +676,7 @@ select.form-control, select.input-modern {
 }
 
 /* Btn lançar */
-.btn-lancar-cozinha {
-    width: 100%;
-    padding: 12px;
-    font-size: 0.95rem;
-    font-weight: 800;
-    letter-spacing: 0.5px;
-    border-radius: 10px;
-}
+/* .btn-lancar-cozinha — ver definição abaixo */
 
 
 
@@ -901,11 +770,7 @@ select.form-control, select.input-modern {
 
 .action-card:active { transform: scale(0.96); }
 
-.ac-abrir {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
+/* .ac-abrir — ver definição abaixo */
 
 /* Cores específicas para cada ação */
 .ac-abrir   { background: linear-gradient(135deg, #2ecc71, #27ae60); } /* Verde */
@@ -1404,7 +1269,7 @@ select.form-control, select.input-modern {
     margin-top: 4px;
 }
 .ranking-card { text-align: left; padding: 16px 18px; }
-.ranking-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+/* .ranking-header — ver definição abaixo */
 .ranking-header h3 { margin: 0; font-size: 0.95rem; color: #444; }
 .ranking-list { display: flex; flex-direction: column; gap: 10px; }
 .rank-item { display: flex; align-items: center; gap: 10px; }
@@ -1430,20 +1295,7 @@ select.form-control, select.input-modern {
 }
 .section-topbar .section-title { margin: 0; }
 .btn-icon { width: 38px; height: 38px; padding: 0; justify-content: center; border-radius: 5px; }
-.btn-relatorio {
-    background-color: #2563eb;
-    color: white;
-    width: auto;
-    height: 38px;
-    padding: 0 14px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    border-radius: 5px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    white-space: nowrap;
-}
+/* .btn-relatorio — ver definição abaixo */
 .btn-relatorio i { font-size: 0.9rem; }
 .btn-refresh { padding: 5px; }
 .rota-card { margin-bottom: 14px; padding: 14px 16px; text-align: left; }
@@ -1455,8 +1307,8 @@ select.form-control, select.input-modern {
 .pedidos-list { display: none; } /* mobile only — shown via media query */
 
 /* --- PDV LABELS --- */
-.pdv-label { font-size: 0.75rem; color: #666; margin-bottom: 3px; display: block; font-weight: 600; }
-.obrig { color: var(--danger); }
+/* .pdv-label — ver definição abaixo */
+/* .obrig — ver definição abaixo */
 
 /* --- EQUIPE FORM --- */
 .equipe-form {
@@ -1716,16 +1568,37 @@ select.form-control, select.input-modern {
     }
 }
 /* ── Mesas Ativas no PDV ─────────────────────────────────── */
-.pdv-mesas-bar {
+.pdv-mesas-bar-wrap {
     grid-column: 1 / -1;
+    border-bottom: 1px solid #e9ecef;
+    margin-bottom: 6px;
+}
+.pdv-mesas-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 2px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: left;
+    transition: color 0.15s;
+}
+.pdv-mesas-toggle:hover { color: var(--primary, #1a7a2e); }
+
+.pdv-mesas-bar {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 10px 0 8px;
-    border-bottom: 1px solid #e9ecef;
-    margin-bottom: 8px;
-    min-height: 48px;
+    padding: 4px 0 10px;
     align-items: center;
+    min-height: 42px;
 }
 
 .pdv-mesas-label {
@@ -1938,12 +1811,7 @@ select.form-control, select.input-modern {
 }
 
 /* ── Ranking vazio ────────────────────────────────────────── */
-.rank-vazio {
-    text-align: center;
-    color: #aaa;
-    font-size: 0.85rem;
-    padding: 16px 0;
-}
+/* .rank-vazio — ver definição abaixo */
 
 /* ── btn-block no monitor PDV ─────────────────────────────── */
 .btn-block-pdv {
@@ -2271,25 +2139,10 @@ select.form-control, select.input-modern {
     flex: 1;
     min-width: 0;
 }
-.pizza-sabor-upload-label {
-    flex-shrink: 0;
-    cursor: pointer;
-}
-.pizza-sabor-upload-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 38px;
-    height: 38px;
-    background: #f0f4ff;
-    border: 1px solid #c3d0f0;
-    border-radius: 8px;
-    font-size: 1.1rem;
-    cursor: pointer;
-    transition: background 0.15s;
-}
-.pizza-sabor-upload-btn:hover { background: #dce6ff; }
-.pizza-sabor-tipo { font-size: 0.9rem !important; }
+/* .pizza-sabor-upload-label — ver definição abaixo */
+/* .pizza-sabor-upload-btn — ver definição abaixo */
+/* .pizza-sabor-upload-btn:hover — ver definição abaixo */
+/* .pizza-sabor-tipo — ver definição abaixo */
 .pizza-sabor-row input,
 .pizza-sabor-row select {
     font-size: 0.95rem;
@@ -2532,8 +2385,14 @@ select.form-control, select.input-modern {
 @media (min-width: 769px) {
     .pdv-tabs { display: none !important; }
     .pdv-mobile-footer { display: none !important; }
-    .pdv-carrinho, .pdv-produtos { display: flex !important; }
+    .pdv-carrinho,
     .pdv-produtos { display: flex !important; flex-direction: column !important; }
+    .pdv-monitor  { display: block; }
+    .pdv-carrinho, .pdv-produtos, .pdv-monitor {
+        max-height: none !important;
+        position: static !important;
+        border-radius: 12px !important;
+    }
 }
 
 /* ── Ranking filtros de período ──────────────────────────── */
@@ -3615,6 +3474,10 @@ hr.modal-divisor {
 .btn-encerrar { background: #f8d7da; color: #721c24; }
 .btn-reabrir  { background: #d4edda; color: #155724; }
 .btn-relatorio { background: linear-gradient(135deg, #2563eb, #1a4fc0); color: white; }
+.btn-baixa-delivery { background: #fff3cd; color: #856404; border: 1.5px solid #ffc107; }
+.btn-baixa-mesas    { background: #e2d9f3; color: #4a1e8a; border: 1.5px solid #9b59b6; }
+.btn-baixa-delivery:hover { background: #ffc107; color: #000; }
+.btn-baixa-mesas:hover    { background: #9b59b6; color: #fff; }
 
 /* Mobile: botões menores, 2 por linha */
 @media (max-width: 768px) {
@@ -4027,3 +3890,736 @@ hr.modal-divisor {
     flex: 1 1 100px;
   }
 }
+/* ══════════════════════════════════════════════════════════════════
+   🎨  LOCANDA ADMIN — UX/UI Redesign Completo
+   Fonte: DM Sans (Google Fonts) — carregada no HTML
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Variáveis extras ──────────────────────────────────────── */
+:root {
+    --radius:     12px;
+    --radius-lg:  18px;
+    --shadow-sm:  0 1px 4px rgba(0,0,0,0.07);
+    --shadow-md:  0 4px 16px rgba(0,0,0,0.09);
+    --shadow-lg:  0 12px 40px rgba(0,0,0,0.14);
+    --transition: 0.18s cubic-bezier(0.4,0,0.2,1);
+    --green-faint:#f0faf3;
+    --border:     #e8ecf2;
+}
+
+/* ── Tipografia global ─────────────────────────────────────── */
+body, button, input, select, textarea {
+    font-family: 'DM Sans', 'Segoe UI', sans-serif;
+}
+
+/* ── Cards modernos ────────────────────────────────────────── */
+.card {
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-sm) !important;
+    border: 1px solid var(--border) !important;
+    transition: box-shadow var(--transition) !important;
+}
+.card:hover { box-shadow: var(--shadow-md) !important; }
+
+/* ── Botões globais ────────────────────────────────────────── */
+.btn {
+    border-radius: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.01em !important;
+    transition: all var(--transition) !important;
+    border: none !important;
+}
+.btn-primary  { background: var(--primary) !important; color: #fff !important; }
+.btn-success  { background: #27ae60 !important;        color: #fff !important; }
+.btn-secondary{ background: #f0f0f0 !important;        color: #555 !important; }
+.btn-danger   { background: #e74c3c !important;        color: #fff !important; }
+
+.btn:hover    { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.14); }
+.btn:active   { transform: translateY(0); filter: brightness(0.97); }
+
+/* ── Inputs modernos ───────────────────────────────────────── */
+.form-control {
+    border-radius: 10px !important;
+    border: 1.5px solid var(--border) !important;
+    padding: 10px 14px !important;
+    font-size: 0.9rem !important;
+    transition: border-color var(--transition), box-shadow var(--transition) !important;
+    background: #fff !important;
+}
+.form-control:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(26,122,46,0.12) !important;
+    outline: none !important;
+}
+
+/* ── Sidebar desktop refinado ──────────────────────────────── */
+@media (min-width: 769px) {
+    .sidebar {
+        width: 220px;
+        background: #1a252f;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.18);
+    }
+
+    .brand {
+        font-size: 0.95rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        padding: 18px 20px;
+        background: rgba(0,0,0,0.25);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .menu-item {
+        padding: 12px 18px;
+        border-radius: 10px;
+        margin: 2px 8px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #8fa3b1;
+        transition: all var(--transition);
+        gap: 10px;
+    }
+    .menu-item:hover {
+        background: rgba(255,255,255,0.07);
+        color: #fff;
+    }
+    .menu-item.active {
+        background: var(--primary) !important;
+        color: #fff !important;
+        box-shadow: 0 4px 14px rgba(26,122,46,0.35);
+    }
+    .menu-item i { width: 18px; text-align: center; }
+}
+
+/* ── Sidebar mobile — navbar bottom ────────────────────────── */
+@media (max-width: 768px) {
+    body {
+        display: block !important;
+        padding-bottom: 72px !important;
+        background: #f4f6fa !important;
+    }
+
+    .sidebar {
+        position: fixed !important;
+        bottom: 0 !important; left: 0 !important; right: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        height: 64px !important;
+        background: #ffffff !important;
+        border-top: 1px solid #e4e8ef !important;
+        box-shadow: 0 -4px 24px rgba(0,0,0,0.10) !important;
+        z-index: 99999 !important;
+        display: flex !important;
+        flex-direction: row !important;
+        padding: 0 !important;
+    }
+
+    .brand,
+    #user-cargo,
+    #user-email,
+    .sidebar > div:not(.menu) { display: none !important; }
+
+    .menu {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-around !important;
+        width: 100% !important;
+        height: 100% !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        padding: 0 4px !important;
+        gap: 0 !important;
+        scrollbar-width: none !important;
+    }
+    .menu::-webkit-scrollbar { display: none; }
+
+    .menu-item {
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: 52px !important;
+        flex: 1 !important;
+        padding: 6px 4px 4px !important;
+        gap: 3px !important;
+        color: #9aa5b4 !important;
+        border-radius: 0 !important;
+        border: none !important;
+        background: transparent !important;
+        font-size: 0 !important;         /* hide text by default */
+        position: relative !important;
+        height: 64px !important;
+        transition: color var(--transition) !important;
+    }
+
+    .menu-item i {
+        font-size: 1.35rem !important;
+        width: auto !important;
+        display: block !important;
+        transition: transform var(--transition) !important;
+    }
+
+    .menu-item span {
+        font-size: 0.58rem !important;
+        font-weight: 700 !important;
+        display: block !important;
+        letter-spacing: 0.01em !important;
+        text-align: center !important;
+        margin-top: 1px !important;
+        white-space: nowrap !important;
+    }
+
+    /* Active state: green icon + underline */
+    .menu-item.active {
+        color: var(--primary) !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    .menu-item.active::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%; transform: translateX(-50%);
+        width: 28px; height: 3px;
+        background: var(--primary);
+        border-radius: 3px 3px 0 0;
+    }
+    .menu-item.active i { transform: translateY(-1px); }
+
+    /* Sair: vermelho */
+    .menu-item[onclick*="logout"] { color: #e74c3c !important; }
+    .menu-item[onclick*="logout"].active { color: #c0392b !important; }
+
+    /* ── Main content mobile ──────────────────────────────────── */
+    .main-content {
+        margin: 0 !important;
+        padding: 14px 12px 80px !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow-y: auto !important;
+        min-height: calc(100vh - 64px) !important;
+    }
+
+    /* ── Tab-content transitions ──────────────────────────────── */
+    .tab-content { display: none; }
+    .tab-content.active {
+        display: block;
+        animation: tabIn 0.22s ease-out;
+    }
+    @keyframes tabIn {
+        from { opacity:0; transform: translateY(8px); }
+        to   { opacity:1; transform: translateY(0); }
+    }
+
+    /* ── Dashboard KPIs ───────────────────────────────────────── */
+    .kpi-grid {
+        grid-template-columns: repeat(2,1fr) !important;
+        gap: 8px !important;
+    }
+    .kpi-card {
+        padding: 12px 14px !important;
+        border-radius: 14px !important;
+    }
+    .kpi-card .value { font-size: 1.05rem !important; }
+    .dash-rankings { grid-template-columns: 1fr !important; }
+
+    /* ── Pedidos topbar ───────────────────────────────────────── */
+    .pedidos-topbar-row1 h2 { font-size: 1.1rem !important; margin: 0 !important; }
+    .pedidos-topbar-row2 {
+        gap: 6px !important;
+        flex-wrap: wrap !important;
+    }
+    .topbar-btn {
+        padding: 8px 10px !important;
+        font-size: 0.78rem !important;
+        border-radius: 8px !important;
+    }
+    .topbar-btn span { font-size: 0.78rem !important; }
+
+    /* ── Pedido cards mobile ──────────────────────────────────── */
+    .pedido-card {
+        border-radius: 14px !important;
+        padding: 14px 14px 12px !important;
+        margin-bottom: 10px !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06) !important;
+        border: 1px solid var(--border) !important;
+    }
+
+    /* ── Modal: slide desde o fundo ──────────────────────────── */
+    .modal-overlay {
+        align-items: flex-end !important;
+        padding-top: 0 !important;
+    }
+    .modal-content,
+    .modal-bottom-sheet,
+    .modal-produto-content,
+    .modal-card-modern {
+        border-radius: 22px 22px 0 0 !important;
+        max-height: 92vh !important;
+        overflow-y: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        animation: sheetUp 0.28s cubic-bezier(0.32,1.1,0.6,1) !important;
+    }
+    @keyframes sheetUp {
+        from { transform: translateY(60px); opacity:0.6; }
+        to   { transform: translateY(0);    opacity:1; }
+    }
+
+    /* ── PDV mobile tabs ──────────────────────────────────────── */
+    .pdv-header-bar h2 { font-size: 1rem !important; }
+
+    .pdv-tabs {
+        background: #f0f2f5 !important;
+        border-radius: 14px !important;
+        padding: 4px !important;
+        gap: 4px !important;
+        margin: 0 0 10px 0 !important;
+        border-bottom: none !important;
+        display: flex !important;
+    }
+    .pdv-tab-btn {
+        flex: 1 !important;
+        border-radius: 10px !important;
+        padding: 10px 6px !important;
+        font-size: 0.82rem !important;
+        font-weight: 700 !important;
+        border: none !important;
+        background: transparent !important;
+        color: #8a95a3 !important;
+        transition: all var(--transition) !important;
+        border-bottom: none !important;
+        margin-bottom: 0 !important;
+        cursor: pointer !important;
+    }
+    .pdv-tab-btn.active {
+        background: #ffffff !important;
+        color: var(--primary) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.10) !important;
+    }
+
+    /* PDV panels hidden unless active */
+    .pdv-carrinho, .pdv-produtos, .pdv-monitor {
+        display: none !important;
+        height: auto !important;
+        max-height: none !important;
+        position: static !important;
+        width: 100% !important;
+    }
+    .pdv-produtos.pdv-tab-active {
+        display: flex !important;
+        flex-direction: column !important;
+        max-height: calc(100dvh - 230px) !important;
+        overflow-y: hidden !important;
+    }
+    .pdv-carrinho.pdv-tab-active {
+        display: flex !important;
+        flex-direction: column !important;
+        max-height: calc(100dvh - 230px) !important;
+        overflow-y: auto !important;
+    }
+    .pdv-monitor.pdv-tab-active {
+        display: block !important;
+        max-height: calc(100dvh - 230px) !important;
+        overflow-y: auto !important;
+    }
+
+    /* PDV footer bar */
+    .pdv-mobile-footer {
+        position: fixed !important;
+        bottom: 64px !important;   /* above navbar */
+        left: 0 !important; right: 0 !important;
+        background: #fff !important;
+        border-top: 1px solid var(--border) !important;
+        box-shadow: 0 -4px 16px rgba(0,0,0,0.08) !important;
+        padding: 10px 14px !important;
+        z-index: 9999 !important;
+        border-radius: 0 !important;
+    }
+    .pdv-mobile-checkout-btn {
+        border-radius: 10px !important;
+        padding: 12px 16px !important;
+        font-weight: 800 !important;
+        font-size: 0.88rem !important;
+    }
+
+    /* PDV grid 2-col */
+    #pdv-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2,1fr) !important;
+        gap: 8px !important;
+    }
+
+    /* PDV product cards: tap feedback */
+    .pdv-card {
+        border-radius: 12px !important;
+        box-shadow: var(--shadow-sm) !important;
+        cursor: pointer !important;
+        transition: transform 0.1s !important;
+    }
+    .pdv-card:active { transform: scale(0.96) !important; }
+
+    /* Inputs touch-sized */
+    .pdv-form-row input,
+    .pdv-tel-row input,
+    #balcao-pag,
+    #balcao-endereco {
+        padding: 12px 14px !important;
+        font-size: 1rem !important;
+        border-radius: 10px !important;
+    }
+
+    /* Lançar na cozinha button */
+    .btn-lancar-cozinha {
+        padding: 16px !important;
+        font-size: 1rem !important;
+        font-weight: 800 !important;
+        border-radius: 12px !important;
+        box-shadow: 0 6px 18px rgba(39,174,96,0.35) !important;
+        letter-spacing: 0.02em !important;
+    }
+
+    /* ── Cat chips horizontal scroll ─────────────────────────── */
+    .pdv-cat-chips {
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        padding-bottom: 4px !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+    }
+    .pdv-cat-chips::-webkit-scrollbar { display: none; }
+    .pdv-cat-chip { flex-shrink: 0 !important; }
+
+    /* ── Cozinha KDS ─────────────────────────────────────────── */
+    .cozinha-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    .kds-card {
+        border-radius: 16px !important;
+        box-shadow: var(--shadow-md) !important;
+    }
+
+    /* ── Financeiro ──────────────────────────────────────────── */
+    .filtro-bar {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    .filtro-bar input,
+    .filtro-bar select,
+    .btn-filtrar {
+        width: 100% !important;
+    }
+    .actions-grid {
+        grid-template-columns: repeat(3,1fr) !important;
+        gap: 8px !important;
+    }
+    .action-card span { font-size: 0.68rem !important; }
+
+    /* ── Tabelas com scroll ───────────────────────────────────── */
+    .table-container, .subtab-content {
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    table {
+        min-width: 560px !important;
+    }
+}
+
+/* ── Desktop: PDV guard ─────────────────────────────────────── */
+@media (min-width: 769px) {
+    .pdv-tabs { display: none !important; }
+    .pdv-mobile-footer { display: none !important; }
+    .pdv-carrinho,
+    .pdv-produtos { display: flex !important; flex-direction: column !important; }
+    .pdv-carrinho, .pdv-produtos, .pdv-monitor {
+        max-height: none !important;
+        position: static !important;
+        border-radius: 12px !important;
+    }
+}
+
+/* ── Transições globais ─────────────────────────────────────── */
+.tab-content.active {
+    animation: tabIn 0.22s ease-out;
+}
+@keyframes tabIn {
+    from { opacity:0; transform: translateY(6px); }
+    to   { opacity:1; transform: translateY(0); }
+}
+
+/* ── Modal desktop: animação ────────────────────────────────── */
+@media (min-width: 769px) {
+    .modal-overlay {
+        align-items: flex-start !important;
+        padding-top: 30px !important;
+    }
+    .modal-content,
+    .modal-bottom-sheet,
+    .modal-produto-content,
+    .modal-card-modern {
+        animation: modalIn 0.24s cubic-bezier(0.34,1.1,0.6,1);
+        border-radius: 18px !important;
+    }
+    @keyframes modalIn {
+        from { opacity:0; transform: translateY(20px) scale(0.97); }
+        to   { opacity:1; transform: translateY(0) scale(1); }
+    }
+}
+
+/* ── Scrollbar global discreta ──────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c8d4de; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #a0aebb; }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   🎨  UX/UI REDESIGN — Locanda Admin
+   Melhorias de usabilidade, design mobile-first e consistência visual
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Sidebar: informação do usuário ─────────────────────────────── */
+.sidebar-user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(0,0,0,0.25);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.sidebar-user-avatar { font-size: 1.6rem; color: rgba(255,255,255,0.7); flex-shrink: 0; }
+.sidebar-user-details { display: flex; flex-direction: column; min-width: 0; }
+.sidebar-user-cargo {
+    font-size: 0.75rem; font-weight: 700;
+    color: #fff; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.sidebar-user-email {
+    font-size: 0.7rem; color: rgba(255,255,255,0.5);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── Sidebar: botão Sair sem background inline ───────────────────── */
+.menu-item-logout {
+    margin-top: auto !important;
+    background: rgba(231,76,60,0.15) !important;
+    color: #e74c3c !important;
+    border-top: 1px solid rgba(231,76,60,0.2) !important;
+}
+.menu-item-logout:hover { background: #e74c3c !important; color: #fff !important; }
+
+/* ── Transições suaves entre abas ───────────────────────────────── */
+.tab-content { transition: opacity 0.2s; }
+.tab-content.active { animation: tabFadeIn 0.25s ease-out; }
+@keyframes tabFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Modais: animação de entrada ─────────────────────────────────── */
+.modal-overlay.active .modal-content,
+.modal-overlay.active .modal-card-modern,
+.modal-overlay.active .modal-produto-content {
+    animation: modalSlideUp 0.28s cubic-bezier(0.34, 1.1, 0.64, 1);
+}
+@keyframes modalSlideUp {
+    from { opacity: 0; transform: translateY(24px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+/* ── Inputs: foco verde consistente ─────────────────────────────── */
+.form-control:focus,
+.input-modern:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(26,122,46,0.12) !important;
+    outline: none !important;
+}
+
+/* ── Botões: hover com elevação ──────────────────────────────────── */
+.btn-primary { transition: background 0.15s, box-shadow 0.15s, transform 0.1s; }
+.btn-primary:hover:not(:disabled) {
+    box-shadow: 0 4px 14px rgba(26,122,46,0.3);
+    transform: translateY(-1px);
+}
+.btn-primary:active { transform: translateY(0); }
+.btn-success:hover:not(:disabled) { box-shadow: 0 4px 14px rgba(46,204,113,0.3); }
+
+/* ── Scrollbar discreta (global) ─────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c8d0dc; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #a0acbb; }
+
+/* ════════════════════════════════════════════════════════════════════
+   📱  MOBILE  (≤ 768px)
+   ════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+    /* ── Sidebar: navbar bottom, fundo branco ───────────────────── */
+    .sidebar {
+        background: #ffffff !important;
+        border-top: 1.5px solid #e8ecf0 !important;
+        box-shadow: 0 -3px 16px rgba(0,0,0,0.10) !important;
+    }
+
+    /* Oculta info do usuário na navbar mobile */
+    .sidebar-user-info { display: none !important; }
+
+    /* ── Ícones da navbar ────────────────────────────────────────── */
+    .menu-item {
+        flex-direction: column !important;
+        padding: 5px 3px !important;
+        gap: 2px !important;
+        color: #8a94a6 !important;
+        border-radius: 8px !important;
+        min-width: 48px !important;
+        position: relative;
+        transition: all 0.15s !important;
+        border-bottom: none !important;
+        background: transparent !important;
+    }
+    .menu-item i  { font-size: 1.25rem !important; width: auto !important; }
+    .menu-item span { font-size: 0.58rem !important; font-weight: 700 !important; }
+
+    /* Item ativo: highlight verde */
+    .menu-item.active {
+        background: #f0faf3 !important;
+        color: var(--primary) !important;
+    }
+    /* Indicador acima do ícone ativo */
+    .menu-item.active::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 50%;
+        transform: translateX(-50%);
+        width: 22px; height: 3px;
+        background: var(--primary);
+        border-radius: 0 0 3px 3px;
+    }
+
+    /* Sair: vermelho discreto na navbar mobile */
+    .menu-item-logout {
+        background: transparent !important;
+        color: #e74c3c !important;
+        border-top: none !important;
+        margin-top: 0 !important;
+    }
+    .menu-item-logout:hover,
+    .menu-item-logout.active {
+        background: #fff0ee !important;
+        color: #e74c3c !important;
+    }
+    .menu-item-logout::before { display: none !important; }
+
+    /* ── Conteúdo principal: espaço e scroll ────────────────────── */
+    .main-content {
+        padding: 12px 12px 95px !important;
+        overflow-y: auto !important;
+        height: calc(100vh - 65px) !important;
+    }
+
+    /* ── KPIs: 2 colunas no mobile ─────────────────────────────── */
+    .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+    .kpi-card { padding: 12px !important; border-radius: 12px !important; }
+    .kpi-card .value { font-size: 1rem !important; }
+
+    /* ── Rankings: 1 coluna no mobile ──────────────────────────── */
+    .dash-rankings { grid-template-columns: 1fr !important; gap: 12px !important; }
+
+    /* ── PDV tabs: visual arredondado ────────────────────────────── */
+    .pdv-tabs {
+        background: #ffffff !important;
+        border-radius: 12px !important;
+        margin: 0 0 8px !important;
+        box-shadow: 0 1px 8px rgba(0,0,0,0.07) !important;
+        border-bottom: none !important;
+        padding: 4px !important;
+        gap: 4px !important;
+    }
+    .pdv-tab-btn {
+        border-radius: 9px !important;
+        padding: 10px 6px !important;
+        font-size: 0.8rem !important;
+        font-weight: 700 !important;
+        transition: all 0.15s !important;
+        border-bottom: none !important;
+        margin-bottom: 0 !important;
+        color: #888 !important;
+    }
+    .pdv-tab-btn.active {
+        background: var(--primary) !important;
+        color: #fff !important;
+        box-shadow: 0 2px 8px rgba(26,122,46,0.3) !important;
+        border-bottom-color: transparent !important;
+    }
+
+    /* ── PDV: barra checkout acima da navbar ────────────────────── */
+    .pdv-mobile-footer {
+        bottom: 65px !important;
+        background: #fff !important;
+        border-top: 1px solid #e8ecf0 !important;
+        box-shadow: 0 -3px 12px rgba(0,0,0,0.07) !important;
+        padding: 10px 16px !important;
+    }
+    .pdv-mobile-checkout-btn {
+        border-radius: 10px !important;
+        padding: 13px 20px !important;
+        font-weight: 800 !important;
+    }
+
+    /* ── PDV: grid de produtos 2 colunas ────────────────────────── */
+    #pdv-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+    .pdv-card { border-radius: 12px !important; overflow: hidden !important; cursor: pointer !important; }
+    .pdv-card:active { opacity: 0.85; transform: scale(0.97); }
+
+    /* ── PDV: campos maiores para toque ─────────────────────────── */
+    #balcao-mesa, #balcao-cliente, #balcao-telefone,
+    #balcao-endereco, #balcao-pag {
+        padding: 13px 14px !important; font-size: 0.97rem !important;
+        border-radius: 10px !important;
+    }
+    .btn-lancar-cozinha {
+        padding: 16px !important; font-size: 1rem !important;
+        font-weight: 800 !important; border-radius: 12px !important;
+        box-shadow: 0 4px 14px rgba(46,204,113,0.3) !important;
+    }
+
+    /* ── Modal: desliza de baixo ─────────────────────────────────── */
+    .modal-overlay { align-items: flex-end !important; padding-top: 0 !important; }
+    .modal-overlay .modal-content,
+    .modal-overlay .modal-card-modern,
+    .modal-overlay .modal-produto-content {
+        border-radius: 20px 20px 0 0 !important;
+        max-height: 92vh !important;
+        overflow-y: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+
+    /* ── Filtros financeiro: coluna única ───────────────────────── */
+    .filtro-bar { flex-direction: column !important; gap: 8px !important; }
+    .filtro-bar input, .filtro-bar select { width: 100% !important; }
+    .filtro-bar .btn-filtrar { width: 100% !important; }
+
+    /* ── Tabelas: scroll horizontal ─────────────────────────────── */
+    .table-container { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+    .table-container table { min-width: 600px !important; }
+
+    /* ── Cabeçalhos de seção ─────────────────────────────────────── */
+    h2.section-title { font-size: 1.1rem !important; }
+    .header-title h2  { font-size: 1.1rem !important; }
+
+    /* ── Pedidos: cards mobile ───────────────────────────────────── */
+    .pedido-card {
+        border-radius: 14px !important;
+        padding: 14px !important;
+        margin-bottom: 10px !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06) !important;
+    }
+
+    /* ── Botões: toque mais fácil ────────────────────────────────── */
+    .btn { min-height: 38px !important; }
+}
+

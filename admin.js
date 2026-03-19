@@ -1,4 +1,18 @@
 // =========================================
+// 0. UTILITÁRIOS DE SEGURANÇA
+// =========================================
+// Fix #75: sanitiza dados do usuário antes de inserir em innerHTML (anti-XSS)
+function esc(str) {
+  if (!str && str !== 0) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// =========================================
 // 1. CONSTANTES E INICIALIZAÇÃO
 // =========================================
 const TAXA_MOTOBOY = 5000;
@@ -20,14 +34,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   iniciarRealtime();
 
   // === SISTEMA DE AUTO-REFRESH (10 SEGUNDOS) ===
-  // Backup caso o Realtime falhe
-  setInterval(() => {
+  // Fix #78: salvar handle para cancelar no logout
+  window._autoRefreshInterval = setInterval(() => {
     const abaAtual = localStorage.getItem("locanda_lastTab");
-    // true = modo silencioso (sem recarregar som se já estiver tocando)
     if (abaAtual === "pedidos") carregarPedidos(true);
     if (abaAtual === "cozinha") carregarCozinha();
     if (abaAtual === "pdv") carregarMonitorMesas();
-    // if (abaAtual === 'financeiro') calcularFinanceiro();
     if (abaAtual === "dashboard") carregarDashboard();
   }, 10000);
 
@@ -41,13 +53,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       .single();
 
     perfilUsuario = perfil ? perfil.cargo : "dono"; // fallback: sem perfil = dono (instalação nova)
+
     const elCargo = document.getElementById("user-cargo");
     if (elCargo) elCargo.innerText = perfilUsuario.toUpperCase();
 
-    if (perfilUsuario === "dono") {
-      const menuFin = document.getElementById("menu-financeiro");
-      if (menuFin) menuFin.style.display = "flex";
-    }
+    // Fix #66: preencher email do usuário no sidebar
+    const elEmail = document.getElementById("user-email");
+    if (elEmail) elEmail.innerText = session.user.email || "";
+
+    // Fix #63/#64: controle de visibilidade por cargo
+    // restrito-gerente: visível para dono e gerente
+    // restrito-func: visível apenas para dono
+    document.querySelectorAll(".restrito-gerente").forEach((el) => {
+      el.style.display = ["dono", "gerente"].includes(perfilUsuario) ? "flex" : "none";
+    });
+    document.querySelectorAll(".restrito-func").forEach((el) => {
+      el.style.display = perfilUsuario === "dono" ? "flex" : "none";
+    });
 
     carregarDashboard();
     carregarMotoboysSelect();
@@ -292,7 +314,7 @@ async function carregarPedidos(silencioso = false) {
   const { data: pedidos } = await supa
     .from("pedidos")
     .select("*")
-    .or("status.eq.pendente,status.eq.pronto_entrega,status.eq.saiu_entrega")
+    .or("status.eq.pendente,status.eq.em_preparo,status.eq.pronto_entrega,status.eq.saiu_entrega")
     .order("id", { ascending: false });
 
   const tbody = document.getElementById("lista-pedidos");
@@ -303,25 +325,38 @@ async function carregarPedidos(silencioso = false) {
   const cardsDiv = document.getElementById("lista-pedidos-cards");
   if (cardsDiv) cardsDiv.innerHTML = "";
 
-  // ── AUTO-CONFIRM: pedidos saiu_entrega há mais de 4h ──────────────────────
-  const _QUATRO_HORAS_MS = 4 * 60 * 60 * 1000;
+  // ── AUTO-CONFIRM delivery: saiu_entrega há mais de 3h → entregue ──────────
+  const _TRES_HORAS_MS = 3 * 60 * 60 * 1000;
   const _agora = Date.now();
   const pedidosParaAutoConfirmar = (pedidos || []).filter(
     (p) =>
       p.status === "saiu_entrega" &&
+      p.tipo_entrega === "delivery" &&
       p.tempo_saiu_entrega &&
-      _agora - new Date(p.tempo_saiu_entrega).getTime() > _QUATRO_HORAS_MS,
+      _agora - new Date(p.tempo_saiu_entrega).getTime() > _TRES_HORAS_MS,
   );
   for (const p of pedidosParaAutoConfirmar) {
-    console.log(
-      `⏰ Auto-confirmando entrega do pedido #${p.id} (mais de 4h em saiu_entrega)`,
-    );
+    console.log(`⏰ Auto-confirmando delivery #${p.id} (mais de 3h em saiu_entrega)`);
     await supa
       .from("pedidos")
-      .update({
-        status: "entregue",
-        tempo_entregue: new Date().toISOString(),
-      })
+      .update({ status: "entregue", tempo_entregue: new Date().toISOString() })
+      .eq("id", p.id);
+  }
+
+  // ── AUTO-AVANÇO: só delivery — em_preparo há mais de 3h → pronto_entrega ──
+  // Mesas (balcao) NÃO entram aqui — baixa manual via botão "Baixa Mesas"
+  const pedidosDeliveryAutoAvancar = (pedidos || []).filter(
+    (p) =>
+      p.status === "em_preparo" &&
+      p.tipo_entrega === "delivery" &&
+      p.tempo_preparo_iniciado &&
+      _agora - new Date(p.tempo_preparo_iniciado).getTime() > _TRES_HORAS_MS,
+  );
+  for (const p of pedidosDeliveryAutoAvancar) {
+    console.log(`⏰ Auto-avançando delivery #${p.id}: em_preparo → pronto_entrega (3h)`);
+    await supa
+      .from("pedidos")
+      .update({ status: "pronto_entrega", tempo_pronto: new Date().toISOString() })
       .eq("id", p.id);
   }
   // ───────────────────────────────────────────────────────────────────────────
@@ -345,7 +380,7 @@ async function carregarPedidos(silencioso = false) {
       const badgeCancelRow =
         temSolicitacaoCancelamento && perfilUsuario === "dono"
           ? `<div style="background:#fff0f0;border:1px solid #e74c3c;border-radius:6px;padding:4px 8px;font-size:0.75rem;margin-top:4px;color:#c0392b">
-                     🚫 <strong>Cancelamento solicitado:</strong> ${p.cancelamento_motivo || "-"}
+                     🚫 <strong>Cancelamento solicitado:</strong> ${esc(p.cancelamento_motivo) || "-"}
                      <br><button class="btn btn-danger btn-sm" onclick="aprovarCancelamento(${p.id})" style="margin-top:4px;font-size:0.7rem">✅ Aprovar</button>
                      <button class="btn btn-secondary btn-sm" onclick="negarCancelamento(${p.id})" style="margin-top:4px;font-size:0.7rem">❌ Negar</button>
                    </div>`
@@ -503,7 +538,7 @@ async function carregarPedidos(silencioso = false) {
           temSolicitacaoCancelamento && perfilUsuario === "dono"
             ? `
                     <div style="background:#fff0f0;border:1px solid #e74c3c;border-radius:6px;padding:6px 8px;font-size:0.75rem;color:#c0392b;margin-top:6px">
-                        🚫 Cancel. solicitado: ${p.cancelamento_motivo || "-"}
+                        🚫 Cancel. solicitado: ${esc(p.cancelamento_motivo) || "-"}
                         <br><button class="btn btn-danger btn-sm" onclick="aprovarCancelamento(${p.id})" style="font-size:0.7rem;margin-top:4px">✅ Aprovar</button>
                         <button class="btn btn-secondary btn-sm" onclick="negarCancelamento(${p.id})" style="font-size:0.7rem;margin-top:4px">❌ Negar</button>
                     </div>`
@@ -714,7 +749,10 @@ async function imprimirPedido(id) {
 
   const jsonStr = JSON.stringify(dados);
   // Base64 URL-safe: substitui +, / e = que quebram a URL
-  const base64 = btoa(unescape(encodeURIComponent(jsonStr)))
+  // Fix #15: encoder moderno que combina com TextDecoder no imprimir.html
+  const _encBytes = new TextEncoder().encode(jsonStr);
+  const _encBin   = String.fromCharCode(..._encBytes);
+  const base64    = btoa(_encBin)
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
@@ -770,7 +808,8 @@ async function carregarCozinha() {
   }
 
   pedidos.forEach((p) => {
-    const dataOriginal = p.created_at || p.data_pedido || new Date();
+    // Fix #70: usar tempo_preparo_iniciado (quando cozinha começou), não created_at
+    const dataOriginal = p.tempo_preparo_iniciado || p.created_at || p.data_pedido || new Date();
     const horaPedido = new Date(dataOriginal).getTime();
     const agora = new Date().getTime();
 
@@ -797,10 +836,10 @@ async function carregarCozinha() {
     let itensHtml = "";
     itensPendentes.forEach((item) => {
       const quantidade = item.qtd || item.q || 1;
-      const nomeItem = item.nome || item.n || "Item";
-      const variacaoItem = item.variacao || item.t || ""; // variação separada do nome
-      const preparoItem = item.preparo || item.pr || ""; // preparo (cru/flambado etc)
-      const observacao = item.obs || item.o || "";
+      const nomeItem = esc(item.nome || item.n || "Item");
+      const variacaoItem = esc(item.variacao || item.t || "");
+      const preparoItem = esc(item.preparo || item.pr || "");
+      const observacao = esc(item.obs || item.o || "");
       const montagemArray = item.montagem || item.m || [];
 
       const obs = observacao
@@ -809,11 +848,12 @@ async function carregarCozinha() {
       const listaMontagem = Array.isArray(montagemArray)
         ? montagemArray
             .map((linha) => {
-              const idx = linha.indexOf(":");
+              const lEsc = esc(linha);
+              const idx = lEsc.indexOf(":");
               if (idx > 0) {
-                return `<strong>${linha.slice(0, idx)}:</strong> ${linha.slice(idx + 1).trim()}`;
+                return `<strong>${lEsc.slice(0, idx)}:</strong> ${lEsc.slice(idx + 1).trim()}`;
               }
-              return linha;
+              return lEsc;
             })
             .join("<br>")
         : "";
@@ -821,7 +861,7 @@ async function carregarCozinha() {
         ? `<div style="font-size:0.8rem; color:#444; margin-left:10px; line-height:1.6;">${listaMontagem}</div>`
         : "";
       const variacaoHtml = variacaoItem
-        ? `<span style="color:#FF441F; font-size:0.85rem; font-weight:600;"> ▸ ${variacaoItem}</span>`
+        ? `<span style="color:#1a7a2e; font-size:0.85rem; font-weight:600;"> ▸ ${variacaoItem}</span>`
         : "";
       const preparoHtml = preparoItem
         ? `<div style="color:#2980b9; font-size:0.82rem; margin-left:10px;">🍳 ${preparoItem}</div>`
@@ -837,27 +877,29 @@ async function carregarCozinha() {
                 `;
     });
 
-    grid.innerHTML += `
-            <div class="kds-card">
-                <div class="kds-header" style="background:${corTempo}; color:#fff; padding:10px; border-radius:5px 5px 0 0; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-weight:bold; font-size:1.1rem">#${p.uid_temporal || p.id}</span>
-                    <span>⏱️ ${minutos} min</span>
+    // Fix #76: usar createElement em vez de innerHTML += (evita custo quadrático e reset de listeners)
+    const card = document.createElement("div");
+    card.className = "kds-card";
+    card.innerHTML = `
+            <div class="kds-header" style="background:${corTempo}; color:#fff; padding:10px; border-radius:5px 5px 0 0; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:bold; font-size:1.1rem">#${p.uid_temporal || p.id}</span>
+                <span>⏱️ ${minutos} min</span>
+            </div>
+            <div style="padding:10px;">
+                <div style="font-weight:bold; font-size:1.1rem; margin-bottom:10px; color:#2c3e50">
+                    ${esc(p.cliente_nome || "Cliente")}
                 </div>
-                <div style="padding:10px;">
-                    <div style="font-weight:bold; font-size:1.1rem; margin-bottom:10px; color:#2c3e50">
-                        ${p.cliente_nome || "Cliente"}
-                    </div>
-                    <ul style="list-style:none; padding:0; margin:0; color:#333;">
-                        ${itensHtml}
-                    </ul>
-                </div>
-                <div style="padding:10px; margin-top:auto;">
-                    <button class="btn btn-success" style="width:100%; padding:15px; font-size:1.1rem;" onclick="mudarStatus(${p.id}, 'pronto_entrega')">
-                        ✅ PRONTO
-                    </button>
-                </div>
+                <ul style="list-style:none; padding:0; margin:0; color:#333;">
+                    ${itensHtml}
+                </ul>
+            </div>
+            <div style="padding:10px; margin-top:auto;">
+                <button class="btn btn-success" style="width:100%; padding:15px; font-size:1.1rem;" onclick="mudarStatus(${p.id}, 'pronto_entrega')">
+                    ✅ PRONTO
+                </button>
             </div>
         `;
+    grid.appendChild(card);
   });
 }
 
@@ -1015,15 +1057,18 @@ async function calcularFinanceiro() {
 
     if (p.tipo_entrega === "delivery") {
       // Usa o frete_motoboy real salvo no pedido; fallback para TAXA_MOTOBOY
-      custoEntregas += p.frete_motoboy || (typeof TAXA_MOTOBOY !== "undefined" ? TAXA_MOTOBOY : 5000);
+      const freteMoto = p.frete_motoboy || (typeof TAXA_MOTOBOY !== "undefined" ? TAXA_MOTOBOY : 5000);
+      custoEntregas += freteMoto;
       const nomeMoto = p.motoboys?.nome || "Sem Motoboy";
       if (!motoMap[nomeMoto]) {
-        motoMap[nomeMoto] = 0;
+        // Armazena objeto com qtd + frete total real por motoboy
+        motoMap[nomeMoto] = { qtd: 0, freteTotal: 0 };
         // Adiciona combustível 1× por motoboy único no período
         custoEntregas +=
           typeof AJUDA_COMBUSTIVEL !== "undefined" ? AJUDA_COMBUSTIVEL : 20000;
       }
-      motoMap[nomeMoto]++;
+      motoMap[nomeMoto].qtd++;
+      motoMap[nomeMoto].freteTotal += freteMoto;
     }
   });
 
@@ -1085,20 +1130,19 @@ async function calcularFinanceiro() {
       tbodyMoto.innerHTML =
         '<tr><td colspan="4" style="text-align:center; color:#999">Nenhuma entrega no período</td></tr>';
     } else {
-      for (const [nome, qtd] of Object.entries(motoMap)) {
-        const taxaMoto =
-          typeof TAXA_MOTOBOY !== "undefined" ? TAXA_MOTOBOY : 5000;
+      for (const [nome, dados] of Object.entries(motoMap)) {
         const combustivel =
           typeof AJUDA_COMBUSTIVEL !== "undefined" ? AJUDA_COMBUSTIVEL : 20000;
-        // Nota: totalEntregas usa taxa fixa pois motoMap não guarda por-pedido
-        // Para precisão máxima, o frete_motoboy real já é contabilizado em custoEntregas
-        const totalEntregas = qtd * taxaMoto;
-        const totalMoto = totalEntregas + combustivel; // combustível: 1x por motoboy por dia
+        // Usa o frete real acumulado (não o TAXA_MOTOBOY fixo)
+        const freteReal   = dados.freteTotal || 0;
+        const qtd         = dados.qtd || 0;
+        const freteMedio  = qtd > 0 ? Math.round(freteReal / qtd) : 0;
+        const totalMoto   = freteReal + combustivel;
         tbodyMoto.innerHTML += `
                     <tr>
                         <td data-label="Nome">${nome}</td>
                         <td data-label="Entregas">${qtd}</td>
-                        <td data-label="Taxa">Gs ${taxaMoto.toLocaleString("es-PY")} × ${qtd} + comb. Gs ${combustivel.toLocaleString("es-PY")}</td>
+                        <td data-label="Frete">Gs ${freteMedio.toLocaleString("es-PY")} × ${qtd} + comb. Gs ${combustivel.toLocaleString("es-PY")}</td>
                         <td data-label="Total a Pagar"><strong>Gs ${totalMoto.toLocaleString("es-PY")}</strong></td>
                     </tr>`;
       }
@@ -1337,7 +1381,7 @@ async function carregarRelatorio() {
     const itensList = (p.itens || [])
       .map((i) => {
         const qtd = i.qtd || i.q || 1;
-        const nome = i.nome || i.n || "?";
+        const nome = esc(i.nome || i.n || "?");
         const variacao = i.variacao || i.t || "";
         const montagem = i.montagem || i.m || [];
         let lbl = `<strong>${qtd}x</strong> ${nome}`;
@@ -1361,12 +1405,12 @@ async function carregarRelatorio() {
     // Cancelamento info
     let cancelInfo = "";
     if (p.status === "cancelado") {
-      const quem = p.cancelamento_solicitado_por || "admin";
+      const quem = esc(p.cancelamento_solicitado_por) || "admin";
       cancelInfo = `<div style="margin-top:5px;padding:5px 7px;background:#fde;border-radius:6px;font-size:0.72rem;color:#a00">
-        🚫 <strong>Por:</strong> ${quem}${p.cancelamento_motivo ? "<br><em>" + p.cancelamento_motivo + "</em>" : ""}</div>`;
+        🚫 <strong>Por:</strong> ${quem}${p.cancelamento_motivo ? "<br><em>" + esc(p.cancelamento_motivo) + "</em>" : ""}</div>`;
     } else if (p.cancelamento_solicitado) {
       cancelInfo = `<div style="margin-top:4px;font-size:0.7rem;color:#e74c3c">
-        🚫 Solicitado por: ${p.cancelamento_solicitado_por || "?"}</div>`;
+        🚫 Solicitado por: ${esc(p.cancelamento_solicitado_por) || "?"}</div>`;
     }
 
     // Tipo badge
@@ -1471,7 +1515,7 @@ async function carregarRelatorio() {
         <div style="font-size:0.78rem;color:#666">${new Date(p.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", ..._tz })}</div>
       </td>
       <td style="padding:10px 8px">
-        <div style="font-weight:700;color:#1a1a2e">${p.cliente_nome || "-"}</div>
+        <div style="font-weight:700;color:#1a1a2e">${esc(p.cliente_nome) || "-"}</div>
         <div style="font-size:0.73rem;color:#999">📞 ${p.cliente_telefone || "-"}</div>
         <div style="margin-top:4px">${tipoBadge}</div>
       </td>
@@ -1548,6 +1592,13 @@ async function fecharCaixaResumo() {
     )
   )
     return;
+
+  // Fix #28: garante que a aba financeiro está ativa antes de calcular
+  // (calcularFinanceiro() retorna early se a aba não estiver active)
+  const abaFin = document.getElementById("financeiro");
+  if (abaFin && !abaFin.classList.contains("active")) {
+    abaFin.classList.add("active");
+  }
   await calcularFinanceiro();
   const s = _caixaState;
   const fmt = (n) => "Gs " + n.toLocaleString("es-PY");
@@ -1621,7 +1672,7 @@ Fechamento registrado!`);
 // =========================================
 // 7. ZAP & ROTA
 // =========================================
-function enviarRotaZap() {
+async function enviarRotaZap() {
   const checks = document.querySelectorAll(".check-pedido:checked");
   const selMoto = document.getElementById("sel-motoboy");
 
@@ -1638,17 +1689,22 @@ function enviarRotaZap() {
   let coords = [];
   let taxaTotal = 0;
 
-  checks.forEach((chk) => {
+  // CORREÇÃO CRÍTICA: usar for...of em vez de forEach para suportar await
+  for (const chk of Array.from(checks)) {
     try {
       // Agora 'p' tem o objeto COMPLETO do banco
       const p = JSON.parse(decodeURIComponent(chk.value));
 
-      // Atualiza status no banco para "saiu_entrega" ou "entregue"
-      supa
-        .from("pedidos")
-        .update({ status: "saiu_entrega", motoboy_id: selMoto.value })
-        .eq("id", p.id)
-        .then();
+      // Atualiza status no banco com await (fix #25)
+      try {
+        const { error: errUpd } = await supa
+          .from("pedidos")
+          .update({ status: "saiu_entrega", motoboy_id: selMoto.value })
+          .eq("id", p.id);
+        if (errUpd) console.error(`Erro ao atualizar pedido #${p.id}:`, errUpd.message);
+      } catch (eUpd) {
+        console.error("Falha ao atualizar status:", eUpd);
+      }
 
       msg += `📦 *PEDIDO #${p.uid_temporal || p.id}*\n`;
       msg += `👤 ${p.cliente_nome} | 📞 ${p.cliente_telefone || ""}\n`;
@@ -1697,22 +1753,22 @@ function enviarRotaZap() {
         // Dinheiro / Efetivo
         msg += `💰 *COBRAR: Gs ${totalFmt}*\n`;
 
-        // Lógica de Troco
+        // Lógica de Troco — fix #26: extrai o último número (valor pedido)
         const obsPag = p.obs_pagamento || "";
-        const nums = obsPag.match(/\d+/g);
-        if (nums) {
-          // Pega o maior número encontrado na obs como valor de troco
-          // Ex: "Troco para 100" -> 100.000
-          let valorTroco = parseInt(nums.join(""));
-          if (valorTroco < 1000) valorTroco *= 1000;
+        const numsRaw = obsPag.match(/[\d.]+/g);
+        if (numsRaw) {
+          // Pega o último número encontrado (ex: "Troco p/ 150.000" → 150000)
+          const raw = numsRaw[numsRaw.length - 1].replace(/\./g, "");
+          let valorTroco = parseInt(raw) || 0;
+          if (valorTroco > 0 && valorTroco < 1000) valorTroco *= 1000;
 
           if (valorTroco > p.total_geral) {
             const devolver = valorTroco - p.total_geral;
-            msg += `🔄 Troco p/ ${valorTroco.toLocaleString()} (Levar Gs ${devolver.toLocaleString()})\n`;
+            msg += `🔄 Troco p/ Gs ${valorTroco.toLocaleString("es-PY")} (Levar Gs ${devolver.toLocaleString("es-PY")})\n`;
           }
         }
-        // Adiciona obs se não for só numero
-        if (obsPag && !nums) msg += `⚠️ Obs: ${obsPag}\n`;
+        // Adiciona obs se não for só número
+        if (obsPag && !numsRaw) msg += `⚠️ Obs: ${obsPag}\n`;
       }
 
       msg += `-----------------\n`;
@@ -1721,7 +1777,7 @@ function enviarRotaZap() {
     } catch (e) {
       console.error("Erro ao processar pedido na rota:", e);
     }
-  });
+  } // fim for...of checks
 
   // MAPA GERAL DA ROTA
   if (coords.length > 0) {
@@ -1887,20 +1943,7 @@ function editarProduto(p) {
   abrirModalProduto(p);
 }
 
-async function deletarProduto(id) {
-  if (
-    !confirm(
-      "⚠️ ATENÇÃO: Deletar este produto?\n\nEsta ação não pode ser desfeita. O produto será removido permanentemente do sistema.",
-    )
-  )
-    return;
-  const { error } = await supa.from("produtos").delete().eq("id", id);
-  if (error) alert("❌ Erro ao deletar: " + error.message);
-  else {
-    alert("✅ Produto deletado!");
-    carregarProdutos();
-  }
-}
+// deletarProduto definida abaixo em L~3640 (versão com try-catch completo)
 
 function previewUpload(input) {
   if (input.files && input.files[0]) {
@@ -1913,8 +1956,9 @@ function previewUpload(input) {
   }
 }
 
-async function salvarProduto() {
-  const btn = event.target;
+async function salvarProduto(btnEl) {
+  const btn = btnEl || event?.target;
+  if (!btn) return;
   btn.innerText = "Salvando...";
   btn.disabled = true;
   try {
@@ -2717,7 +2761,7 @@ async function avisarEncerramentoDelivery() {
       </label>
       <textarea id="aviso-encerramento-texto" rows="3"
         style="width:100%;padding:10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:0.9rem;resize:vertical;box-sizing:border-box;margin-bottom:16px"
-        placeholder="Ex: Delivery encerrado por hoje. Voltamos amanhã às 18h! 🍣"></textarea>
+        placeholder="Ex: Delivery encerrado por hoje. Voltamos amanhã às 18h! 🍕"></textarea>
 
       <div style="display:flex;gap:10px">
         <button onclick="this.closest('#modal-encerramento-delivery').remove()"
@@ -2737,7 +2781,7 @@ async function avisarEncerramentoDelivery() {
 async function _confirmarEncerramentoDelivery() {
   const texto =
     document.getElementById("aviso-encerramento-texto")?.value?.trim() ||
-    "Delivery encerrado por hoje. Obrigado! 🍣";
+    "Delivery encerrado por hoje. Obrigado! 🍕";
 
   const { error } = await supa
     .from("configuracoes")
@@ -4494,8 +4538,9 @@ async function salvarTabelaFrete() {
   alert("✅ Tabela de frete salva com sucesso!");
 }
 
-async function salvarPersonalizacao() {
-  const btn = event.target;
+async function salvarPersonalizacao(btnEl) {
+  const btn = btnEl || event?.target;
+  if (!btn) return;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
   btn.disabled = true;
 
@@ -4558,13 +4603,15 @@ async function carregarDashboard() {
       month: "long",
     });
 
-  const hoje = new Date().toISOString().split("T")[0];
+  // Fix #27: aplica offset UTC-4 (Paraguay) para capturar pedidos da madrugada corretamente
+  const _tzOff = 4 * 60 * 60 * 1000;
+  const hojeUtc = new Date(new Date().setHours(0,0,0,0).valueOf() + _tzOff).toISOString();
 
   // Pedidos de hoje entregues
   const { data: pedidos } = await supa
     .from("pedidos")
-    .select("*")
-    .gte("created_at", hoje)
+    .select("id, total_geral, tipo_entrega")
+    .gte("created_at", hojeUtc)
     .eq("status", "entregue");
   const total = pedidos
     ? pedidos.reduce((a, b) => a + (b.total_geral || 0), 0)
@@ -4798,40 +4845,57 @@ function pdvMudarView(view) {
 
 function pdvIniciarTabs() {
   const isMobile = window.innerWidth <= 768;
-  const tabsEl = document.getElementById("pdv-tabs");
-  const footer = document.getElementById("pdv-mobile-footer");
+  const tabsEl    = document.getElementById("pdv-tabs");
+  const footer    = document.getElementById("pdv-mobile-footer");
   const headerBar = document.querySelector(".pdv-header-bar .pdv-view-btns");
 
   if (isMobile) {
-    if (tabsEl) tabsEl.style.display = "flex";
-    if (footer) footer.style.display = "flex";
+    if (tabsEl)    tabsEl.style.display    = "flex";
+    if (footer)    footer.style.display    = "flex";
     if (headerBar) headerBar.style.display = "none";
-    // Mobile começa mostrando o cardápio
-    document
-      .querySelectorAll(".pdv-tab-btn")
-      .forEach((b) => b.classList.remove("active"));
-    const btnCardapio = tabsEl
-      ? tabsEl.querySelector(".pdv-tab-btn:nth-child(1)")
-      : null;
-    if (btnCardapio) {
-      btnCardapio.classList.add("active");
-    }
+
+    // CRÍTICO: garantir que apenas o painel de produtos esteja ativo ao iniciar
+    [".pdv-carrinho", ".pdv-produtos", ".pdv-monitor"].forEach((sel) => {
+      const el = document.querySelector(sel);
+      if (el) el.classList.remove("pdv-tab-active");
+    });
+
+    // Ativar primeiro botão (Cardápio)
+    document.querySelectorAll(".pdv-tab-btn").forEach((b) => b.classList.remove("active"));
+    const btnCardapio = tabsEl ? tabsEl.querySelector(".pdv-tab-btn:nth-child(1)") : null;
+    if (btnCardapio) btnCardapio.classList.add("active");
+
+    // Navegar para cardápio e garantir painel de venda visível
     pdvMudarAba("produtos", null);
+    const panelVenda = document.getElementById("pdv-panel-venda");
+    const panelMesas = document.getElementById("pdv-panel-mesas");
+    if (panelVenda) panelVenda.style.display = "block";
+    if (panelMesas) panelMesas.style.display = "none";
+
   } else {
-    if (tabsEl) tabsEl.style.display = "none";
-    if (footer) footer.style.display = "none";
+    if (tabsEl)    tabsEl.style.display    = "none";
+    if (footer)    footer.style.display    = "none";
     if (headerBar) headerBar.style.display = "flex";
-    // Desktop: mostra produtos e carrinho sempre
+
+    // Desktop: produtos e carrinho visíveis lado a lado, monitor oculto
     [".pdv-carrinho", ".pdv-produtos"].forEach((sel) => {
       const el = document.querySelector(sel);
       if (el) el.classList.add("pdv-tab-active");
     });
+    const monitor = document.querySelector(".pdv-monitor");
+    if (monitor) monitor.classList.remove("pdv-tab-active");
+
     const panelVenda = document.getElementById("pdv-panel-venda");
     if (panelVenda) panelVenda.style.display = "block";
   }
 }
 
 async function logout() {
+  // Fix #78: cancela auto-refresh antes de encerrar sessão
+  if (window._autoRefreshInterval) {
+    clearInterval(window._autoRefreshInterval);
+    window._autoRefreshInterval = null;
+  }
   const { error } = await supa.auth.signOut();
   if (error) alert("Erro ao sair: " + error.message);
   else window.location.href = "login.html";
@@ -4858,9 +4922,11 @@ function pdvSelecionarTipo(tipo) {
   if (tipo === "local") {
     if (mesaCol) mesaCol.style.display = "";
     if (deliveryRow) deliveryRow.style.display = "none";
+    resetFreteCalcPDV();
   } else if (tipo === "levar") {
     if (mesaCol) mesaCol.style.display = "none";
     if (deliveryRow) deliveryRow.style.display = "none";
+    resetFreteCalcPDV();
   } else if (tipo === "delivery") {
     if (mesaCol) mesaCol.style.display = "none";
     if (deliveryRow) deliveryRow.style.display = "block";
@@ -4869,6 +4935,135 @@ function pdvSelecionarTipo(tipo) {
 let produtosCachePDV = [];
 // Cotação carregada das configurações (fallback 1100)
 let _cotacaoPDV = 1100;
+// Estado do frete calculado para PDV delivery
+let _pdvFreteCliente = 0;
+let _pdvFreteMotoboy = 0;
+let _pdvFreteCalcOk  = false;
+
+function resetFreteCalcPDV() {
+  _pdvFreteCliente = 0;
+  _pdvFreteMotoboy = 0;
+  _pdvFreteCalcOk  = false;
+  const res = document.getElementById("pdv-frete-result");
+  if (res) res.style.display = "none";
+  atualizarTotalPDV();
+}
+
+function _extrairCoordsGoogleMaps(url) {
+  if (!url) return null;
+  let m = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  m = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  m = url.match(/\/(-?\d{1,3}\.\d{4,}),(-?\d{1,3}\.\d{4,})/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  m = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+  return null;
+}
+
+function _calcularDistanciaPDV(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function atualizarTotalPDV() {
+  const totalEl   = document.getElementById("balcao-total");
+  const mobileTotal = document.getElementById("pdv-mobile-total-val");
+  if (!totalEl) return;
+  let subtotal = 0;
+  if (window._mesaAbertaPedido?.itens) {
+    window._mesaAbertaPedido.itens.forEach(i => { subtotal += (i.preco || 0) * (i.qtd || 1); });
+  }
+  carrinhoPDV.forEach(i => { subtotal += i.preco * i.qtd; });
+  const totalComFrete = subtotal + (_pdvFreteCalcOk ? _pdvFreteCliente : 0);
+  totalEl.innerText = totalComFrete.toLocaleString("es-PY");
+  if (mobileTotal) mobileTotal.textContent = totalComFrete.toLocaleString("es-PY");
+  atualizarInfoPagPDV(totalComFrete);
+}
+
+async function calcularRotaPDV() {
+  const linkInput = document.getElementById("balcao-endereco");
+  const resultBox  = document.getElementById("pdv-frete-result");
+  const btn        = document.getElementById("btn-calc-rota-pdv");
+  if (!linkInput || !resultBox) return;
+  const link = linkInput.value.trim();
+  if (!link) { alert("⚠️ Cole o link do Google Maps primeiro!"); linkInput.focus(); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+  try {
+    let coords = _extrairCoordsGoogleMaps(link);
+
+    if (!coords && (link.includes("goo.gl") || link.includes("maps.app"))) {
+      resultBox.style.display = "block";
+      resultBox.style.background = "#fff3cd";
+      resultBox.style.border = "1px solid #ffc107";
+      resultBox.style.color = "#856404";
+      resultBox.innerHTML = `⚠️ Link encurtado detectado.<br>
+        Abra o link no Maps, copie a URL completa da barra de endereços e cole aqui.`;
+      return;
+    }
+    if (!coords) {
+      resultBox.style.display = "block";
+      resultBox.style.background = "#fdecea";
+      resultBox.style.border = "1px solid #e74c3c";
+      resultBox.style.color = "#c0392b";
+      resultBox.innerHTML = `❌ Não foi possível extrair coordenadas desta URL.<br>
+        <small>Use o Google Maps → Compartilhar → Copiar link. Evite links encurtados (goo.gl).</small>`;
+      return;
+    }
+
+    const dist = _calcularDistanciaPDV(COORD_LOJA.lat, COORD_LOJA.lng, coords.lat, coords.lng);
+    const { data: cfg } = await supa.from("configuracoes").select("tabela_frete").single();
+    const TABELA = cfg?.tabela_frete;
+    const LIMITES_KM = [1.9, 3.0, 4.0, 5.0, 7.0, 9.0, 99999];
+    let idx = LIMITES_KM.findIndex(lim => dist <= lim);
+    if (idx === -1) idx = LIMITES_KM.length - 1;
+
+    if (TABELA && TABELA[idx]?.acombinar) {
+      _pdvFreteCalcOk = false; _pdvFreteCliente = 0; _pdvFreteMotoboy = 0;
+      resultBox.style.display = "block";
+      resultBox.style.background = "#fff3cd"; resultBox.style.border = "1px solid #ffc107"; resultBox.style.color = "#856404";
+      resultBox.innerHTML = `📍 ${dist.toFixed(1)} km — Frete <strong>a combinar</strong> com o cliente.`;
+      atualizarTotalPDV(); return;
+    }
+
+    if (TABELA && TABELA[idx]) {
+      _pdvFreteCliente = TABELA[idx].loja   || 0;
+      _pdvFreteMotoboy = TABELA[idx].motoboy || 0;
+    } else {
+      if      (dist <= 1.9) { _pdvFreteCliente = 5000;  _pdvFreteMotoboy = 5000; }
+      else if (dist <= 3.0) { _pdvFreteCliente = 8000;  _pdvFreteMotoboy = 8000; }
+      else if (dist <= 4.0) { _pdvFreteCliente = 12000; _pdvFreteMotoboy = 10000; }
+      else if (dist <= 5.0) { _pdvFreteCliente = 15000; _pdvFreteMotoboy = 12000; }
+      else if (dist <= 7.0) { _pdvFreteCliente = 20000; _pdvFreteMotoboy = 15000; }
+      else if (dist <= 9.0) { _pdvFreteCliente = 25000; _pdvFreteMotoboy = 18000; }
+      else                  { _pdvFreteCliente = 30000; _pdvFreteMotoboy = 20000; }
+    }
+    _pdvFreteCalcOk = true;
+    resultBox.style.display = "block";
+    resultBox.style.background = "#eafaf1"; resultBox.style.border = "1px solid #27ae60"; resultBox.style.color = "#155724";
+    resultBox.innerHTML = `✅ ${dist.toFixed(1)} km &nbsp;|&nbsp; 🛵 Frete cliente: <strong>Gs ${_pdvFreteCliente.toLocaleString("es-PY")}</strong> &nbsp;|&nbsp; Motoboy: <strong>Gs ${_pdvFreteMotoboy.toLocaleString("es-PY")}</strong>`;
+    atualizarTotalPDV();
+  } catch(err) {
+    console.error("Erro calcularRotaPDV:", err);
+    resultBox.style.display = "block";
+    resultBox.style.background = "#fdecea"; resultBox.style.border = "1px solid #e74c3c"; resultBox.style.color = "#c0392b";
+    resultBox.innerHTML = "❌ Erro ao calcular: " + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-route"></i> Calcular';
+  }
+}
 
 async function carregarPDV() {
   // PDV carrega TODOS os produtos ativos (incluindo somente_balcao e pausados não)
@@ -5920,7 +6115,7 @@ function _mostrarUpsellExtrasPDV(produto, extras) {
     "display:flex;justify-content:space-between;align-items:center;padding:12px 14px 10px;border-bottom:1px solid #f5f5f5;background:linear-gradient(135deg,#fff8f5,#fff)";
   hdr.innerHTML = `
     <div>
-      <div style="font-weight:700;font-size:0.85rem;color:#333">🍣 Adicionar ao pedido?</div>
+      <div style="font-weight:700;font-size:0.85rem;color:#333">🍕 Adicionar ao pedido?</div>
       <div style="font-size:0.73rem;color:#999;margin-top:1px">${produto.nome}</div>
     </div>`;
   const btnX = document.createElement("button");
@@ -6098,7 +6293,8 @@ function atualizarInfoPagPDV(total) {
   if (selectPag) selectPag.style.display = "";
 
   if (pag === "Pix" && total > 0) {
-    const valorReais = (total / _cotacaoPDV).toFixed(2);
+    // Sempre arredonda para CIMA
+    const valorReais = Math.ceil(total / _cotacaoPDV);
     infoBox.style.display = "block";
     infoBox.innerHTML = `<i class="fas fa-qrcode"></i> <strong>Cobrar em Pix: R$ ${valorReais}</strong>`;
   } else if (pag === "Multipagamento") {
@@ -6330,6 +6526,10 @@ async function salvarPedidoBalcao() {
       0,
     );
 
+    // Se não restar nenhum item pendente após o merge → pronto direto
+    const _temPendenteMerge = itensMerged.some(i => !i.status_item || i.status_item === "pendente");
+    const _statusMerge = _temPendenteMerge ? "em_preparo" : "pronto_entrega";
+
     const { error } = await supa
       .from("pedidos")
       .update({
@@ -6340,7 +6540,7 @@ async function salvarPedidoBalcao() {
         obs_pagamento: obsPagPDV,
         cliente_nome: nomeFinal,
         cliente_telefone: tel,
-        status: "em_preparo",
+        status: _statusMerge,
       })
       .eq("id", window._mesaAbertaId);
 
@@ -6388,15 +6588,21 @@ async function salvarPedidoBalcao() {
   }
 
   // ── INSERT: novo pedido de balcão ─────────────────────────────
-  const totalNovo = novosItens.reduce((acc, i) => acc + i.preco * i.qtd, 0);
+  const subtotalNovo = novosItens.reduce((acc, i) => acc + i.preco * i.qtd, 0);
+  const freteClientePDV = (tipoEntregaBanco === "delivery" && typeof _pdvFreteCalcOk !== "undefined" && _pdvFreteCalcOk) ? (_pdvFreteCliente || 0) : 0;
+  const freteMoboyPDV   = (tipoEntregaBanco === "delivery" && typeof _pdvFreteCalcOk !== "undefined" && _pdvFreteCalcOk) ? (_pdvFreteMotoboy || 0) : 0;
+  const totalNovo = subtotalNovo + freteClientePDV;
   const _agora = new Date().toISOString();
+  // Se TODOS os itens são bebidas, já entra em pronto (pula cozinha)
+  const _todosBebidasInsert = novosItens.every(i => _isBebida(i));
   const pedido = {
     uid_temporal: `BALC-${Math.floor(Math.random() * 1000)}`,
-    status: "em_preparo",
+    status: _todosBebidasInsert ? "pronto_entrega" : "em_preparo",
     tipo_entrega: tipoEntregaBanco,
     total_geral: totalNovo,
-    subtotal: totalNovo,
-    frete_cobrado_cliente: 0,
+    subtotal: subtotalNovo,
+    frete_cobrado_cliente: freteClientePDV,
+    frete_motoboy: freteMoboyPDV,
     forma_pagamento: pag,
     itens: novosItens,
     endereco_entrega: enderecoFinal,
@@ -6436,11 +6642,34 @@ if (error) {
   carregarMonitorMesas();
   _imprimirPedidoLocal(pedidoInserido || pedido, novosItens);
 }
+// ── Toggle barra de mesas (recolher/expandir) ─────────────────
+let _mesasBarAberta = true;
+function toggleMesasBar() {
+  const bar   = document.getElementById("pdv-mesas-bar");
+  const arrow = document.getElementById("pdv-mesas-toggle-arrow");
+  if (!bar) return;
+  _mesasBarAberta = !_mesasBarAberta;
+  bar.style.display = _mesasBarAberta ? "" : "none";
+  if (arrow) arrow.textContent = _mesasBarAberta ? "▼" : "▶";
+  try { localStorage.setItem("locanda_mesas_bar", _mesasBarAberta ? "1" : "0"); } catch(_) {}
+}
+
 // ── Barra de Mesas Ativas no PDV ─────────────────────────────
 async function atualizarBarraMesasAtivas() {
-  const bar = document.getElementById("pdv-mesas-bar");
+  const bar   = document.getElementById("pdv-mesas-bar");
   const vazio = document.getElementById("pdv-mesas-vazio");
   if (!bar) return;
+
+  // Restaura preferência de colapso salva
+  try {
+    const saved = localStorage.getItem("locanda_mesas_bar");
+    if (saved === "0" && _mesasBarAberta) {
+      _mesasBarAberta = false;
+      bar.style.display = "none";
+      const arrow = document.getElementById("pdv-mesas-toggle-arrow");
+      if (arrow) arrow.textContent = "▶";
+    }
+  } catch(_) {}
 
   const { data } = await supa
     .from("pedidos")
@@ -6450,7 +6679,7 @@ async function atualizarBarraMesasAtivas() {
     .neq("status", "cancelado")
     .order("id", { ascending: true });
 
-  // Limpar chips anteriores (manter apenas label e span vazio)
+  // Limpar chips anteriores (manter apenas span vazio)
   bar.querySelectorAll(".mesa-chip").forEach((c) => c.remove());
   if (vazio) vazio.style.display = data && data.length > 0 ? "none" : "inline";
 
@@ -6703,6 +6932,12 @@ async function finalizarMesa(id) {
 
 // ── Avisa o cliente via WhatsApp que o pedido está pronto ──────────
 function avisarClientePronto(tel, nomeCliente, nrMesa) {
+  // Fix #72: valida telefone antes de abrir WhatsApp
+  const telLimpo = (tel || '').replace(/\D/g, '');
+  if (!telLimpo || telLimpo.length < 8) {
+    alert('\u26a0\ufe0f Telefone do cliente não informado. Não é possível enviar aviso pelo WhatsApp.');
+    return;
+  }
   const nomeReal = (nomeCliente || '').replace(/^MESA \d+ - /i, '').trim() || 'Cliente';
   const msg =
 `🍕 *${nomeReal}*
@@ -6712,7 +6947,7 @@ function avisarClientePronto(tel, nomeCliente, nrMesa) {
 🇧🇷 Seu pedido da Mesa ${nrMesa} está *PRONTO*! Pode vir buscar. ✅
 
 _Locanda Pizzeria_ 🍕`;
-  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`, "_blank");
+  window.open(`https://wa.me/${telLimpo}?text=${encodeURIComponent(msg)}`, "_blank");
 }
 
 // ── Cancela pedido no monitor de mesas ────────────────────────────
@@ -7067,11 +7302,13 @@ async function confirmarEntregaFuncionario(pedidoId) {
   }
 
   try {
+    const agora = new Date().toISOString();
     const { error } = await supa
       .from("pedidos")
       .update({
         status: "entregue",
-        entrega_confirmada_em: new Date().toISOString(),
+        tempo_entregue: agora,          // Fix #21: campo usado pelo polling do cliente
+        entrega_confirmada_em: agora,
         confirmacao_tipo: "funcionario",
       })
       .eq("id", pedidoId);
@@ -7265,4 +7502,113 @@ if (typeof fecharModal !== "function") {
       modal.style.display = "none";
     }
   }
+}
+
+// =========================================
+// BAIXA EM LOTE — DELIVERY E MESAS
+// =========================================
+
+// Fecha todos os pedidos delivery com mais de 24h (independente do status)
+async function baixarTodosDelivery() {
+  const _24H_MS = 24 * 60 * 60 * 1000;
+  const agora   = Date.now();
+
+  // Busca todos delivery ainda ativos
+  const { data, error } = await supa
+    .from("pedidos")
+    .select("id, status, created_at, uid_temporal")
+    .eq("tipo_entrega", "delivery")
+    .in("status", ["pendente", "em_preparo", "pronto_entrega", "saiu_entrega"]);
+
+  if (error) { alert("Erro ao buscar pedidos: " + error.message); return; }
+  if (!data || data.length === 0) {
+    alert("✅ Nenhum pedido delivery ativo no momento."); return;
+  }
+
+  // Filtra os com mais de 24h
+  const velhos = data.filter(p =>
+    agora - new Date(p.created_at).getTime() > _24H_MS
+  );
+
+  if (velhos.length === 0) {
+    alert(`ℹ️ Existem ${data.length} pedido(s) delivery ativo(s), mas nenhum tem mais de 24h.\n\nUse os botões individuais para dar baixa manualmente.`);
+    return;
+  }
+
+  const ids = velhos.map(p => `#${p.uid_temporal || p.id}`).join(", ");
+  const confirmar = confirm(
+    `⚠️ BAIXA EM LOTE — DELIVERY\n\n` +
+    `Serão marcados como ENTREGUES:\n${ids}\n\n` +
+    `(${velhos.length} pedido(s) com mais de 24h)\n\nConfirmar?`
+  );
+  if (!confirmar) return;
+
+  const agora_iso = new Date().toISOString();
+  let erros = 0;
+  for (const p of velhos) {
+    const { error: err } = await supa
+      .from("pedidos")
+      .update({ status: "entregue", tempo_entregue: agora_iso })
+      .eq("id", p.id);
+    if (err) { console.error(`Erro pedido #${p.id}:`, err.message); erros++; }
+  }
+
+  if (erros > 0) {
+    alert(`⚠️ ${velhos.length - erros} pedidos baixados com sucesso.\n${erros} falharam — verifique o console.`);
+  } else {
+    alert(`✅ ${velhos.length} pedido(s) delivery marcado(s) como entregues!`);
+  }
+  carregarPedidos();
+}
+
+// Fecha todas as mesas (balcão) ativas de uma vez
+async function baixarTodasMesas() {
+  const { data, error } = await supa
+    .from("pedidos")
+    .select("id, status, endereco_entrega, cliente_nome, uid_temporal")
+    .eq("tipo_entrega", "balcao")
+    .in("status", ["pendente", "em_preparo", "pronto_entrega"]);
+
+  if (error) { alert("Erro ao buscar mesas: " + error.message); return; }
+  if (!data || data.length === 0) {
+    alert("✅ Nenhuma mesa ativa no momento."); return;
+  }
+
+  const lista = data
+    .map(p => {
+      const mesa = (p.endereco_entrega || "").replace("Mesa ", "") || (p.uid_temporal || p.id);
+      const nome = (p.cliente_nome || "").replace(/^MESA \d+ - /i, "") || "";
+      return `Mesa ${mesa}${nome ? " — " + nome : ""}`;
+    })
+    .join("\n");
+
+  const confirmar = confirm(
+    `⚠️ BAIXA EM LOTE — MESAS\n\n` +
+    `Serão marcadas como entregues:\n${lista}\n\n` +
+    `(${data.length} mesa(s) ativa(s))\n\nConfirmar?`
+  );
+  if (!confirmar) return;
+
+  const agora_iso = new Date().toISOString();
+  let erros = 0;
+  for (const p of data) {
+    const { error: err } = await supa
+      .from("pedidos")
+      .update({
+        status: "entregue",
+        tempo_entregue: agora_iso,
+        entrega_confirmada_em: agora_iso,
+        confirmacao_tipo: "baixa_lote",
+      })
+      .eq("id", p.id);
+    if (err) { console.error(`Erro mesa #${p.id}:`, err.message); erros++; }
+  }
+
+  if (erros > 0) {
+    alert(`⚠️ ${data.length - erros} mesas baixadas com sucesso.\n${erros} falharam — verifique o console.`);
+  } else {
+    alert(`✅ ${data.length} mesa(s) encerrada(s) com sucesso!`);
+  }
+  carregarPedidos();
+  carregarMonitorMesas();
 }

@@ -443,8 +443,9 @@ function setLanguage(lang) {
         console.error('Idioma não suportado:', lang);
         return;
     }
+    // Fix #56: aplica primeiro, salva depois (evita salvar sem aplicar)
+    updatePageLanguage(lang);
     localStorage.setItem('language', lang);
-    updatePageLanguage();
 }
 
 // Função para obter tradução
@@ -454,8 +455,9 @@ function t(key) {
 }
 
 // Função para atualizar toda a página
-function updatePageLanguage() {
-    const lang = getCurrentLanguage();
+function updatePageLanguage(langOverride) {
+    // Fix #57: aceita parâmetro opcional para aplicar idioma sem persistir ainda
+    const lang = langOverride || getCurrentLanguage();
     
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');

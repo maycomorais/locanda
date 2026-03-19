@@ -1,5 +1,5 @@
 :root {
-    --primary: #1a7a2e; /* Verde - Cantinho Brasileiro */
+    --primary: #1a7a2e; /* Verde - Locanda Pizzeria */
     --bg: #F9F9F9;
     --dark: #333;
     --gray: #888;
@@ -54,37 +54,6 @@ main.menu-container { flex: 1; }
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
-#buy-again-container h3 {
-    font-size: 0.95rem;
-    color: #f57f17; /* Laranja escuro */
-    margin-bottom: 4px;
-    display: flex; 
-    align-items: center; 
-    gap: 8px;
-}
-
-/* O texto do último pedido */
-.last-order-text {
-    font-size: 0.85rem;
-    color: #666;
-    max-width: 200px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis; /* Coloca ... se for mto grande */
-}
-
-/* O botão de "Adicionar" */
-.repeat-btn {
-    background: #f57f17;
-    color: #fff;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.9rem;
-    cursor: pointer;
-    box-shadow: 0 2px 5px rgba(245, 127, 23, 0.3);
-}
 
 /* Nav Categorias */
 .category-nav {
@@ -229,7 +198,7 @@ main.menu-container { flex: 1; }
     transition: 0.2s;
 }
 .close-btn:hover {
-    background: #ff441f; /* Cor da marca */
+    background: var(--primary); /* Cor da marca */
     color: white;
 }
 
@@ -297,6 +266,7 @@ main.menu-container { flex: 1; }
     border-radius: 12px;
     margin-bottom: 25px;
     border: 1px solid #e0e0e0;
+    animation: pulse-border 2s infinite;
 }
 
 .delivery-toggle button {
@@ -325,14 +295,12 @@ main.menu-container { flex: 1; }
 }
 
 @keyframes pulse-border {
-    0% { box-shadow: 0 0 0 0 rgba(255, 68, 31, 0.4); }
-    70% { box-shadow: 0 0 0 10px rgba(255, 68, 31, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(255, 68, 31, 0); }
+    0% { box-shadow: 0 0 0 0 rgba(26, 122, 46, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(26, 122, 46, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(26, 122, 46, 0); }
 }
 
-.delivery-toggle {
-    animation: pulse-border 2s infinite; /* Chama atenção */
-}
+/* delivery-toggle animation merged above */
 
 .form-section { margin-bottom: 20px; }
 .form-section h4 { font-size: 0.9rem; margin-bottom: 10px; color: var(--dark); }
@@ -360,7 +328,7 @@ main.menu-container { flex: 1; }
 .input-field:focus {
     border-color: #1a7a2e; /* Sua cor principal */
     outline: none;
-    box-shadow: 0 0 0 3px rgba(255, 68, 31, 0.1);
+    box-shadow: 0 0 0 3px rgba(26, 122, 46, 0.1);
 }
 
 /* Arrumar o DDI cortado */
@@ -481,11 +449,7 @@ main.menu-container { flex: 1; }
     margin-bottom: 5px;
 }
 
-.modal-bottom-sheet {
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
-}
+/* modal-bottom-sheet já definido acima */
 
 .modal-scroll-area {
     flex: 1;
@@ -683,16 +647,6 @@ footer {
 }
 
 /* === ESTILOS MODERNOS PARA MODAIS DE CUPOM === */
-.modal-card-modern {
-    background: white;
-    border-radius: 20px;
-    width: 90%;
-    max-width: 550px;
-    max-height: 85vh;
-    overflow: hidden;
-    box-shadow: 0 25px 70px rgba(0,0,0,0.35);
-    animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
 
 @keyframes modalSlideIn {
     from {
@@ -706,7 +660,7 @@ footer {
 }
 
 .modal-header-modern {
-    background: linear-gradient(135deg, var(--primary) 0%, #e63b1f 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, #155c24 100%);
     color: white;
     padding: 20px 25px;
     display: flex;
@@ -778,15 +732,6 @@ footer {
     letter-spacing: 0.5px;
 }
 
-.badge-success {
-    background: #d4edda;
-    color: #155724;
-}
-
-.badge-danger {
-    background: #f8d7da;
-    color: #721c24;
-}
 /* =============================================
    TRACKING CARD - ESTILOS
    ============================================= */
@@ -811,54 +756,13 @@ footer {
    ═══════════════════════════════════════════ */
 
 /* Pizza: grade de tamanhos */
-.pizza-size-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
-    gap: 8px;
-    margin: 10px 0;
-}
-.pizza-size-card {
-    border: 2px solid #eee;
-    border-radius: 12px;
-    padding: 10px 6px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.15s;
-    background: #fafafa;
-}
-.pizza-size-card:active, .pizza-size-card:hover { border-color: var(--primary); background: #fff5f3; }
-.pizza-size-card.selected { border-color: var(--primary); background: #fff0ec; box-shadow: 0 3px 8px rgba(255,68,31,0.2); }
-.pizza-size-name { font-size: 1.15rem; font-weight: 800; color: #333; }
-.pizza-size-info { font-size: 0.68rem; color: #999; margin: 3px 0; }
-.pizza-size-price { font-size: 0.85rem; font-weight: 700; color: var(--primary); }
+/* pizza-size-grid definido abaixo (versão completa) */
 
 /* Pizza: opção chips (borda / tipo) */
-.pizza-opt-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
-.pizza-opt-chip {
-    padding: 7px 14px;
-    border-radius: 20px;
-    border: 2px solid #ddd;
-    background: #f5f5f5;
-    cursor: pointer;
-    font-size: 0.82rem;
-    font-weight: 600;
-    transition: all 0.15s;
-}
-.pizza-opt-chip.selected { border-color: var(--primary); background: #fff0ec; color: var(--primary); }
+/* pizza-opt-row/chip definidos abaixo (versão completa) */
 
 /* Sabores */
 .sabor-slot-label { font-size: 0.78rem; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.4px; margin: 14px 0 4px; }
-.sabores-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.sabor-chip {
-    padding: 6px 12px;
-    border-radius: 20px;
-    border: 2px solid #ddd;
-    background: #f5f5f5;
-    cursor: pointer;
-    font-size: 0.82rem;
-    transition: all 0.15s;
-}
-.sabor-chip.selected { border-color: #e67e22; background: #fff5e0; color: #d35400; font-weight: 600; }
 
 /* Almoço: grade de pratos */
 .almoco-pratos-grid {
@@ -997,7 +901,7 @@ footer {
     cursor: pointer;
     transition: background 0.2s;
 }
-.desktop-cart-btn:hover:not(:disabled) { background: #c0392b; }
+.desktop-cart-btn:hover:not(:disabled) { background: #155c24; }
 .desktop-cart-btn:disabled { background: #ccc; cursor: not-allowed; }
 
 /* ═══════════════════════════════════════════
@@ -1057,7 +961,7 @@ footer {
 .pizza-size-card.selected {
     border-color: var(--primary);
     background: linear-gradient(135deg, #fff5f3, #ffe0d8);
-    box-shadow: 0 3px 10px rgba(255,68,31,0.2);
+    box-shadow: 0 3px 10px rgba(26, 122, 46, 0.2);
 }
 .pizza-size-name { font-size: 1.1rem; font-weight: 800; color: #333; }
 .pizza-size-info { font-size: 0.68rem; color: #999; }
@@ -1085,7 +989,7 @@ footer {
 .pizza-divisao-btn.selected {
     border-color: var(--primary);
     background: linear-gradient(135deg, #fff5f3, #ffe0d8);
-    box-shadow: 0 3px 10px rgba(255,68,31,0.2);
+    box-shadow: 0 3px 10px rgba(26, 122, 46, 0.2);
 }
 .pizza-divisao-icone { font-size: 1.4rem; }
 .pizza-divisao-nome { font-size: 0.75rem; font-weight: 700; color: #444; text-align: center; line-height: 1.2; }

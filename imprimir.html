@@ -110,7 +110,7 @@
             .logo-box img { max-width:55px; max-height:55px; }
         }
     </style>
-<base target="_blank">
+<!-- base target removido -->
 </head>
 <body>
 <div class="ticket">
@@ -200,7 +200,9 @@
             const b64 = codigoBase64.replace(/-/g, '+').replace(/_/g, '/');
             const pad = b64.length % 4;
             const b64p = pad ? b64 + '='.repeat(4 - pad) : b64;
-            const pedido = JSON.parse(decodeURIComponent(escape(atob(b64p))));
+            // Fix #15: substituída a API deprecated unescape/escape por TextDecoder (UTF-8 seguro)
+            const bytes = Uint8Array.from(atob(b64p), c => c.charCodeAt(0));
+            const pedido = JSON.parse(new TextDecoder('utf-8').decode(bytes));
 
             // Cabeçalho
             document.getElementById('id-pedido').innerText = pedido.id || 'S/N';

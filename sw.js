@@ -1,5 +1,5 @@
 // sw.js — Service Worker do Locanda Pizzeria
-const CACHE_NAME = 'locanda-v2';
+const CACHE_NAME = 'locanda-v3';
 const ASSETS_TO_CACHE = [
     '/index.html',
     '/style.css',

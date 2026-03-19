@@ -2,13 +2,12 @@
 <html lang="es-PY">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <meta name="theme-color" content="#1a7a2e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Locanda Pizzeria">
-    <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" sizes="180x180" href="https://ovhlxaouwclmryeidbyl.supabase.co/storage/v1/object/public/produtos/icone-loja-1772630933911.png">
     <title>Locanda Pizzeria - Delivery</title>
     <!-- Open Graph / WhatsApp / Facebook -->
@@ -30,9 +29,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#1d1d1d">
     <script src="translations.js"></script>
-<base target="_blank">
+<!-- base target="_blank" removido (fix #51) -->
 </head>
 <body>
   <!-- Loading Overlay -->
@@ -464,14 +462,14 @@ window.addEventListener('DOMContentLoaded', () => {
     <div class="desktop-layout">
     <div class="desktop-left">
 
-    <div class="banner-area">
-        <div class="banner-track">
-            <img src="https://ovhlxaouwclmryeidbyl.supabase.co/storage/v1/object/public/produtos/sabores/1773197514128-peperoni.jpg" 
-                 onclick="clicarBanner(1)" 
+    <div class="banner-area" id="banner-area">
+        <div class="banner-track" id="banner-track">
+            <!-- Fix #48: onclicks removidos do HTML — app.js atribui o produto correto via admin -->
+            <img id="banner-img-1"
+                 src="https://ovhlxaouwclmryeidbyl.supabase.co/storage/v1/object/public/produtos/sabores/1773197514128-peperoni.jpg"
                  style="cursor:pointer">
-            
-            <img src="https://i.ibb.co/fzQ5kjzq/638301347-17857921035611574-1767765324877851797-n.jpg" 
-                 onclick="clicarBanner(2)" 
+            <img id="banner-img-2"
+                 src="https://i.ibb.co/fzQ5kjzq/638301347-17857921035611574-1767765324877851797-n.jpg"
                  style="cursor:pointer">
         </div>
     </div>
@@ -667,10 +665,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
 
-                <div class="upsell-section">
-                    <h4 data-lang-key="turbine">Turbine su pedido 🥤</h4>
-                    <div id="upsell-list" class="upsell-scroller"></div>
-                </div>
+                <!-- Fix #50: container upsell duplicado #upsell-list removido -->
 
                 <div class="form-section">
                     <h4 data-lang-key="seus-dados">Sus Datos</h4>
@@ -827,10 +822,8 @@ window.addEventListener('DOMContentLoaded', () => {
     <script src="supabaseClient.js"></script>
     <script src="app.js"></script>
     <script>
-        // Registro do Service Worker para PWA
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(() => {});
-        }
+        // Fix #46: Service Worker registrado apenas uma vez com path absoluto e .catch()
+        // (segundo registro removido do final do arquivo)
         
         // ===== PWA INSTALL PROMPT =====
         let deferredPrompt;
@@ -891,8 +884,10 @@ window.addEventListener('DOMContentLoaded', () => {
         });
 
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js');
-            }
+            navigator.serviceWorker.register('/sw.js').catch(err => {
+                console.warn('Service Worker registration failed:', err);
+            });
+        }
     </script>
 </body>
 </html>

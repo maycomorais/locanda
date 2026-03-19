@@ -1,41 +1,27 @@
 {
-  "name": "Locanda Admin",
-  "short_name": "Admin 🍕",
-  "description": "Painel administrativo — Locanda Pizzeria",
-  "start_url": "/admin.html",
+  "name": "Locanda Pizzeria",
+  "short_name": "Locanda 🍕",
+  "description": "Cardápio digital com entrega rápida — Locanda Pizzeria",
+  "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#1a252f",
+  "background_color": "#ffffff",
   "theme_color": "#1a7a2e",
-  "lang": "pt-BR",
+  "lang": "es-PY",
   "icons": [
     {
       "src": "https://ovhlxaouwclmryeidbyl.supabase.co/storage/v1/object/public/produtos/icone-loja-1772630933911.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "https://ovhlxaouwclmryeidbyl.supabase.co/storage/v1/object/public/produtos/icone-loja-1772630933911.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ],
-  "categories": ["business", "productivity"],
-  "shortcuts": [
-    {
-      "name": "PDV Balcão",
-      "short_name": "PDV",
-      "url": "/admin.html#pdv",
-      "icons": [{ "src": "https://ovhlxaouwclmryeidbyl.supabase.co/storage/v1/object/public/produtos/icone-loja-1772630933911.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "Pedidos",
-      "short_name": "Pedidos",
-      "url": "/admin.html#pedidos",
-      "icons": [{ "src": "https://ovhlxaouwclmryeidbyl.supabase.co/storage/v1/object/public/produtos/icone-loja-1772630933911.png", "sizes": "96x96" }]
-    }
-  ]
+  "categories": ["food", "shopping"]
 }
