@@ -758,7 +758,7 @@ async function imprimirPedido(id) {
     .replace(/=+$/, "");
 
   // Abre a janela de impressão
-  window.open(`imprimir.html?d=${base64}`, "Print", "width=420,height=700");
+  window.open(`imprimir.html?d=${base64}`, "Print", "width=420,height=900");
 }
 
 // Imprime direto dos dados locais — sem fetch extra ao banco
@@ -776,14 +776,17 @@ function _imprimirPedidoLocal(pedidoObj, itens) {
       m: i.montagem || [],
       o: i.obs || '',
     })),
-    valores: { sub: pedidoObj.subtotal, frete: pedidoObj.frete_cobrado_cliente || 0, total: pedidoObj.total_geral },
+    valores: { sub: pedidoObj.subtotal, frete: pedidoObj.frete_cobrado_cliente || 0, desconto: pedidoObj.desconto_cupom || 0, total: pedidoObj.total_geral },
     pagamento: { metodo: pedidoObj.forma_pagamento, obs: pedidoObj.obs_pagamento },
     factura: null,
     data: new Date().toLocaleString('pt-BR'),
   };
-  const base64 = btoa(unescape(encodeURIComponent(JSON.stringify(dados))))
+  // TextEncoder (UTF-8 safe) — igual ao imprimirPedido()
+  const _encBytes = new TextEncoder().encode(JSON.stringify(dados));
+  const _encBin   = String.fromCharCode(..._encBytes);
+  const base64    = btoa(_encBin)
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  window.open(`imprimir.html?d=${base64}`, 'Print', 'width=420,height=700');
+  window.open(`imprimir.html?d=${base64}`, 'Print', 'width=420,height=900');
 }
 
 // =========================================
@@ -6268,17 +6271,14 @@ function atualizarCarrinhoPDV() {
     lista.innerHTML = '<p class="pdv-lista-vazio">Nenhum item adicionado.</p>';
   }
 
-  if (totalEl) totalEl.innerText = total.toLocaleString("es-PY");
-
-  // Atualiza barra inferior mobile
+  // Atualiza barra inferior mobile (quantidade)
   const mobileQtd = document.getElementById("pdv-mobile-qtd");
-  const mobileTot = document.getElementById("pdv-mobile-total-val");
   const qtdTotal = carrinhoPDV.reduce((a, i) => a + i.qtd, 0);
   if (mobileQtd)
     mobileQtd.textContent = qtdTotal + (qtdTotal === 1 ? " item" : " itens");
-  if (mobileTot) mobileTot.textContent = total.toLocaleString("es-PY");
 
-  atualizarInfoPagPDV(total);
+  // Delega ao total final — inclui frete delivery corretamente
+  atualizarTotalPDV();
 }
 
 function atualizarInfoPagPDV(total) {
@@ -7490,7 +7490,6 @@ function renderizarGrafico(labels, data, cores) {
         },
       },
     },
-    E,
   });
 }
 

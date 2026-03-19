@@ -84,7 +84,12 @@
         @media print {
             body { background:none; padding:0; margin:0; font-size:12px; -webkit-print-color-adjust:exact; }
             .btn-print { display:none; }
-            .ticket { box-shadow:none; max-width:100%; width:100%; margin:0; padding:2px 3px; }
+            .ticket {
+                box-shadow:none; max-width:100%; width:100%; margin:0; padding:2px 3px;
+                /* Evita que o ticket seja cortado no meio */
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
             @page { margin:1.5mm; size:58mm auto; }
 
             .nome-loja    { font-size:14px; }
@@ -155,6 +160,7 @@
 
     <div class="totals">
         Subtotal: <span id="subtotal">Gs 0</span><br>
+        <span id="desconto-row" style="display:none">Desconto: <span id="desconto">- Gs 0</span><br></span>
         <span id="frete-row">Frete: <span id="frete">Gs 0</span></span><br>
     </div>
     <div class="total-final">TOTAL: <span id="total-geral">Gs 0</span></div>
@@ -277,6 +283,13 @@
             document.getElementById('subtotal').innerText    = `Gs ${(v.sub    || v.subtotal   || 0).toLocaleString('es-PY')}`;
             document.getElementById('frete').innerText       = `Gs ${(v.frete  || 0).toLocaleString('es-PY')}`;
             document.getElementById('total-geral').innerText = `Gs ${(v.total  || v.total_geral || 0).toLocaleString('es-PY')}`;
+
+            // Desconto (se houver)
+            const descVal = v.desconto || v.desconto_cupom || 0;
+            if (descVal > 0) {
+                document.getElementById('desconto-row').style.display = '';
+                document.getElementById('desconto').innerText = `- Gs ${descVal.toLocaleString('es-PY')}`;
+            }
 
             // Pagamento
             const pg = pedido.pagamento || {};
