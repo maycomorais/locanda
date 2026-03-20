@@ -1059,19 +1059,20 @@ async function calcularFinanceiro() {
       totalEfetivo += valorPedido;
 
     if (p.tipo_entrega === "delivery") {
-      // Usa o frete_motoboy real salvo no pedido; fallback para TAXA_MOTOBOY
-      const freteMoto = p.frete_motoboy || (typeof TAXA_MOTOBOY !== "undefined" ? TAXA_MOTOBOY : 5000);
+      // Usa o frete_motoboy real salvo no pedido (sem fallback hardcoded)
+      const freteMoto = p.frete_motoboy || 0;
       custoEntregas += freteMoto;
       const nomeMoto = p.motoboys?.nome || "Sem Motoboy";
       if (!motoMap[nomeMoto]) {
         // Armazena objeto com qtd + frete total real por motoboy
-        motoMap[nomeMoto] = { qtd: 0, freteTotal: 0 };
+        motoMap[nomeMoto] = { qtd: 0, freteTotal: 0, semFrete: 0 };
         // Adiciona combustível 1× por motoboy único no período
         custoEntregas +=
           typeof AJUDA_COMBUSTIVEL !== "undefined" ? AJUDA_COMBUSTIVEL : 20000;
       }
       motoMap[nomeMoto].qtd++;
       motoMap[nomeMoto].freteTotal += freteMoto;
+      if (!p.frete_motoboy) motoMap[nomeMoto].semFrete++;
     }
   });
 
@@ -1136,16 +1137,20 @@ async function calcularFinanceiro() {
       for (const [nome, dados] of Object.entries(motoMap)) {
         const combustivel =
           typeof AJUDA_COMBUSTIVEL !== "undefined" ? AJUDA_COMBUSTIVEL : 20000;
-        // Usa o frete real acumulado (não o TAXA_MOTOBOY fixo)
+        // Usa o frete real acumulado (sem fallback TAXA_MOTOBOY)
         const freteReal   = dados.freteTotal || 0;
         const qtd         = dados.qtd || 0;
-        const freteMedio  = qtd > 0 ? Math.round(freteReal / qtd) : 0;
+        const semFrete    = dados.semFrete || 0;
         const totalMoto   = freteReal + combustivel;
+        const freteMedio  = qtd > 0 ? Math.round(freteReal / qtd) : 0;
+        const freteLabel  = semFrete > 0
+          ? `Gs ${freteReal.toLocaleString("es-PY")} total (${semFrete} sem frete) + comb. Gs ${combustivel.toLocaleString("es-PY")}`
+          : `Gs ${freteMedio.toLocaleString("es-PY")} x ${qtd} + comb. Gs ${combustivel.toLocaleString("es-PY")}`;
         tbodyMoto.innerHTML += `
                     <tr>
                         <td data-label="Nome">${nome}</td>
                         <td data-label="Entregas">${qtd}</td>
-                        <td data-label="Frete">Gs ${freteMedio.toLocaleString("es-PY")} × ${qtd} + comb. Gs ${combustivel.toLocaleString("es-PY")}</td>
+                        <td data-label="Frete">${freteLabel}</td>
                         <td data-label="Total a Pagar"><strong>Gs ${totalMoto.toLocaleString("es-PY")}</strong></td>
                     </tr>`;
       }
@@ -1775,8 +1780,8 @@ async function enviarRotaZap() {
       }
 
       msg += `-----------------\n`;
-      // Usa o frete_motoboy real salvo no pedido; fallback para TAXA_MOTOBOY
-      taxaTotal += p.frete_motoboy || (typeof TAXA_MOTOBOY !== "undefined" ? TAXA_MOTOBOY : 5000);
+      // Usa o frete_motoboy real salvo no pedido (sem fallback hardcoded)
+      taxaTotal += p.frete_motoboy || 0;
     } catch (e) {
       console.error("Erro ao processar pedido na rota:", e);
     }
