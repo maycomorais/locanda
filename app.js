@@ -2,7 +2,7 @@
 // 1. CONFIGURAÇÕES & DADOS GERAIS
 // ==========================================
 const FONE_LOJA = '595984692537'  
-const COORD_LOJA = { lat: -25.2365803, lng: -57.5380816 };
+const COORD_LOJA = { lat: -25.2345649, lng: -57.5378941}
 let COTACAO_REAL = 1100;
 let autoConfirmTimer = null;
 
