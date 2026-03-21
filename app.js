@@ -2127,7 +2127,7 @@ async function calcularFrete() {
       }
 
       // Verifica se a faixa está marcada como "A combinar" no admin
-      if (TABELA_FRETE && TABELA_FRETE[freteIndex] !== undefined && TABELA_FRETE[freteIndex].acombinar) {
+      if (TABELA_FRETE && TABELA_FRETE[freteIndex] !== undefined && TABELA_FRETE[freteIndex].acombinar === true) { {
         freteCalculado = -1; // sentinela: a combinar
         freteMotoboy   = 0;
         msg.innerHTML = `<span style="color:#e67e22">⚠️ Distância: ${dist.toFixed(1)}km — Frete <strong>a combinar</strong> pelo WhatsApp.</span>`;
