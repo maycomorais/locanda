@@ -1767,6 +1767,19 @@ function renderUpsell() {
 }
 
 function adicionarUpsell(item) {
+  // Se o item tem variações/montagem, abre o modal de escolha em vez de adicionar direto
+  const cfg = item.montagem;
+  const temVariacao = cfg && (
+    (cfg.__tipo && cfg.__tipo !== 'padrao') ||
+    (cfg.variacoes && cfg.variacoes.length > 0) ||
+    (cfg.pizza) ||
+    (cfg.tamanhos && cfg.tamanhos.length > 0) ||
+    (cfg.shake)
+  );
+  if (temVariacao || item.e_montavel) {
+    abrirModal(item);
+    return;
+  }
   carrinho.push({ ...item, qtd: 1, montagem: [], obs: '' });
   renderCarrinho();
   updateUI();
@@ -2251,7 +2264,10 @@ async function enviarZap() {
 
   const usouPlanoB = document.getElementById('check-sem-gps')?.checked;
   const ref = document.getElementById('cli-ref').value || '';
-  const telCompleto = ddi + tel;
+  // Sanitiza telefone: remove +, -, espaços, parênteses e outros não-numéricos
+  // Caso o cliente cole um número do WhatsApp como "+595 984 692537"
+  const telSanitizado = tel.replace(/[^\d]/g, '');
+  const telCompleto = ddi + telSanitizado;
 
   const totalItens = carrinho.reduce((a, i) => a + i.preco * i.qtd, 0);
   let desconto = 0;

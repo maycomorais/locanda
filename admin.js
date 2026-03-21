@@ -431,12 +431,14 @@ async function carregarPedidos(silencioso = false) {
             p.tipo_entrega === "balcao" ? "fa-store" : "fa-hand-holding";
           const tipo = p.tipo_entrega === "balcao" ? "BALCÃO" : "RETIRADA";
           checkbox = `<div style="text-align:center; color:#e67e22; font-size:1.2rem"><i class="fas ${icone}" title="${tipo}"></i></div>`;
-          const _telDsk = (p.cliente_telefone || "").replace(/\D/g, "");
+          const _telDsk = (p.cliente_telefone || "").replace(/[^\d]/g, "");
           const _nomeDsk = (p.cliente_nome || "").replace(/^MESA \d+ - /i, "") || "Cliente";
-          const _mesaDsk = (p.endereco_entrega || "").replace("Mesa ", "") || "";
-          const btnWhatsDsk = p.tipo_entrega === "balcao" && _telDsk.length >= 7
+          const _mesaDsk = (p.endereco_entrega || "").replace(/Mesa /i, "") || "";
+          const _tipoDsk = p.tipo_entrega || "balcao";
+          // Fix: botão para balcão, retirada E local (pedidos do cardápio)
+          const btnWhatsDsk = _telDsk.length >= 7
             ? `<button class="btn btn-sm" style="background:#25D366;color:#fff;border:none;border-radius:4px;padding:3px 8px;cursor:pointer"
-               onclick="avisarClientePronto('${_telDsk}','${_nomeDsk.replace(/'/g,"\'")}','${_mesaDsk}')"><i class="fab fa-whatsapp"></i></button>`
+               onclick="avisarClientePronto('${_telDsk}','${_nomeDsk.replace(/'/g, "\\'")}','${_mesaDsk}','${_tipoDsk}')"><i class="fab fa-whatsapp"></i></button>`
             : "";
           acoes = `${btnPrint} ${btnCancelar} ${btnWhatsDsk} <button class="btn btn-success btn-sm" onclick="finalizarMesa(${p.id})">Baixar</button>`;
         }
@@ -501,7 +503,7 @@ async function carregarPedidos(silencioso = false) {
                         }`;
         } else if (
           p.status === "pronto_entrega" &&
-          p.tipo_entrega === "balcao"
+          (p.tipo_entrega === "balcao" || p.tipo_entrega === "retirada" || p.tipo_entrega === "local")
         ) {
           const _btnCancelBalcao =
             perfilUsuario === "dono"
@@ -509,12 +511,13 @@ async function carregarPedidos(silencioso = false) {
               : !temSolicitacaoCancelamento
                 ? `<button class="btn btn-warning btn-sm" onclick="solicitarCancelamento(${p.id})"><i class="fas fa-ban"></i> Cancelar</button>`
                 : "";
-          const _telCard = (p.cliente_telefone || "").replace(/\D/g, "");
+          const _telCard = (p.cliente_telefone || "").replace(/[^\d]/g, "");
           const _nomeCard = (p.cliente_nome || "").replace(/^MESA \d+ - /i, "") || "Cliente";
-          const _mesaCard = (p.endereco_entrega || "").replace("Mesa ", "") || "";
+          const _mesaCard = (p.endereco_entrega || "").replace(/Mesa /i, "") || "";
+          const _tipoCard = p.tipo_entrega || "balcao";
           const btnWhatsCard = _telCard.length >= 7
             ? `<button class="btn btn-success btn-sm" style="background:#25D366;border-color:#25D366;width:100%;margin-top:4px"
-               onclick="avisarClientePronto('${_telCard}','${_nomeCard.replace(/'/g,"\'")}','${_mesaCard}')"><i class="fab fa-whatsapp"></i> Avisar Cliente</button>`
+               onclick="avisarClientePronto('${_telCard}','${_nomeCard.replace(/'/g, "\\'")}','${_mesaCard}','${_tipoCard}')"><i class="fab fa-whatsapp"></i> Avisar Cliente</button>`
             : "";
           cardAcoes = `<button class="btn btn-success btn-sm" onclick="finalizarMesa(${p.id})"><i class="fas fa-check"></i> Entregar</button>
                         <button class="btn btn-info btn-sm" onclick="imprimirPedido(${p.id})"><i class="fas fa-print"></i> Imprimir</button>
@@ -6801,13 +6804,14 @@ async function carregarMonitorMesas() {
         '<span class="mesa-monitor-status-pronto"><i class="fas fa-check-circle"></i> PRONTO!</span>';
 
       // Botão WhatsApp: só aparece se o cliente tem telefone
-      const telCliente = (p.cliente_telefone || "").replace(/\D/g, "");
-      const nrMesaWhats = (p.endereco_entrega || "").replace("Mesa ", "") || p.id;
+      const telCliente = (p.cliente_telefone || "").replace(/[^\d]/g, "");
+      const nrMesaWhats = (p.endereco_entrega || "").replace(/Mesa /i, "") || p.id;
       const nomeCliente = (p.cliente_nome || "").replace(/^MESA \d+ - /i, "") || "Cliente";
+      const tipoMonitor = p.tipo_entrega || "balcao";
       const btnWhats = telCliente.length >= 7
         ? `<button class="btn btn-sm btn-block-pdv"
               style="margin-top:6px;background:#25D366;color:#fff;border:none;border-radius:6px;padding:7px;cursor:pointer;font-size:0.82rem;font-weight:700;"
-              onclick="avisarClientePronto('${telCliente}','${nomeCliente.replace(/'/g,"\\'")}','${nrMesaWhats}')">
+              onclick="avisarClientePronto('${telCliente}','${nomeCliente.replace(/'/g,"\\'")}','${nrMesaWhats}','${tipoMonitor}')">
               <i class="fab fa-whatsapp"></i> Avisar Cliente
            </button>`
         : "";
@@ -6936,22 +6940,34 @@ async function finalizarMesa(id) {
 }
 
 // ── Avisa o cliente via WhatsApp que o pedido está pronto ──────────
-function avisarClientePronto(tel, nomeCliente, nrMesa) {
-  // Fix #72: valida telefone antes de abrir WhatsApp
-  const telLimpo = (tel || '').replace(/\D/g, '');
+function avisarClientePronto(tel, nomeCliente, nrMesa, tipo) {
+  // Sanitiza telefone: remove +, -, espaços e qualquer não-numérico
+  const telLimpo = (tel || '').replace(/[^\d]/g, '');
   if (!telLimpo || telLimpo.length < 8) {
-    alert('\u26a0\ufe0f Telefone do cliente não informado. Não é possível enviar aviso pelo WhatsApp.');
+    alert('⚠️ Telefone do cliente não informado. Não é possível enviar aviso pelo WhatsApp.');
     return;
   }
   const nomeReal = (nomeCliente || '').replace(/^MESA \d+ - /i, '').trim() || 'Cliente';
-  const msg =
+  let msg;
+  if (!tipo || tipo === 'balcao') {
+    msg =
 `🍕 *${nomeReal}*
 
 🇪🇸 ¡Su pedido de la Mesa ${nrMesa} está *LISTO*! Pásese a buscarlo. ✅
 🇵🇾 Ne${nrMesa} mesápe oĩ *OGUEREKO*! Eju eheja. ✅
-🇧🇷 Seu pedido da Mesa ${nrMesa} está *PRONTO*! Pode vir buscar. ✅
+🇧🇷 Mesa ${nrMesa}, seu pedido está *PRONTO*! Pode vir buscar. ✅
 
 _Locanda Pizzeria_ 🍕`;
+  } else {
+    msg =
+`🍕 *${nomeReal}*
+
+🇪🇸 ¡Su pedido está *LISTO* para retirar! Venga a buscarlo. ✅
+🇵🇾 Ne mba'u oĩ *OGUEREKO* reikuaa haguã! Eju. ✅
+🇧🇷 Seu pedido está *PRONTO* para retirada! Pode vir buscar. ✅
+
+_Locanda Pizzeria_ 🍕`;
+  }
   window.open(`https://wa.me/${telLimpo}?text=${encodeURIComponent(msg)}`, "_blank");
 }
 
