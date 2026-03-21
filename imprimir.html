@@ -50,9 +50,9 @@
             padding-bottom:2px;
             text-transform:uppercase;
         }
-        thead th:last-child { text-align:right; }
         tbody td { font-size:12px; font-weight:800; padding:3px 0; vertical-align:top; }
-        tbody td:last-child { text-align:right; white-space:nowrap; }
+        .item-total-row { display:flex; justify-content:space-between; align-items:center; margin-top:2px; }
+        .item-total-preco { font-size:12px; font-weight:800; text-align:right; white-space:nowrap; }
 
         .item-variacao { font-size:11px; font-weight:800; color:#000;  text-transform: uppercase;}
         .item-montagem { font-size:11px; font-weight:800; color:#222; line-height:1.45; text-transform: uppercase;}
@@ -105,6 +105,7 @@
             .item-montagem  { font-size:11px; }
             .item-obs       { font-size:11px; }
             .item-preparo   { font-size:11px; }
+            .item-total-preco { font-size:11px; }
             .totals      { font-size:10px; line-height:1.5; }
             .total-final { font-size:14px; }
             .pag-metodo  { font-size:11px; }
@@ -147,9 +148,8 @@
     <table>
         <thead>
             <tr>
-                <th style="width:12%">Qtd</th>
-                <th>Item</th>
-                <th>Total</th>
+                <th style="width:14%">Qtd</th>
+                <th>Item / Detalhes + Valor</th>
             </tr>
         </thead>
         <tbody id="lista-itens">
@@ -271,7 +271,7 @@
 
                     const total = (preco * qtd).toLocaleString('es-PY');
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `<td>${qtd}x</td><td>${nome}${detalhes}</td><td>Gs ${total}</td>`;
+                    tr.innerHTML = `<td>${qtd}x</td><td>${nome}${detalhes}<div class="item-total-row"><span></span><span class="item-total-preco">Gs ${total}</span></div></td>`;
                     tbody.appendChild(tr);
                 });
             } else {

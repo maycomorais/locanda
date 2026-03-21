@@ -2127,7 +2127,11 @@ async function calcularFrete() {
       }
 
       // Verifica se a faixa está marcada como "A combinar" no admin
-      if (TABELA_FRETE && TABELA_FRETE[freteIndex] !== undefined && TABELA_FRETE[freteIndex].acombinar === true) { {
+      // Fix: usa === true para evitar falsos positivos com valores truthy acidentais
+      const faixaSalva = TABELA_FRETE && Array.isArray(TABELA_FRETE) && TABELA_FRETE[freteIndex];
+      const faixaTemValorReal = faixaSalva && (faixaSalva.loja > 0 || faixaSalva.motoboy > 0);
+
+      if (faixaSalva && faixaSalva.acombinar === true && !faixaTemValorReal) {
         freteCalculado = -1; // sentinela: a combinar
         freteMotoboy   = 0;
         msg.innerHTML = `<span style="color:#e67e22">⚠️ Distância: ${dist.toFixed(1)}km — Frete <strong>a combinar</strong> pelo WhatsApp.</span>`;
@@ -2139,17 +2143,18 @@ async function calcularFrete() {
         return;
       }
 
-      if (TABELA_FRETE && TABELA_FRETE[freteIndex] !== undefined) {
-        freteCalculado = TABELA_FRETE[freteIndex].loja || 0;
-        freteMotoboy   = TABELA_FRETE[freteIndex].motoboy || 0;
+      if (faixaSalva && faixaTemValorReal) {
+        // Usa tabela configurada no admin
+        freteCalculado = faixaSalva.loja || 0;
+        freteMotoboy   = faixaSalva.motoboy || 0;
       } else {
-        // Fallback se tabela não configurada: faixas padrão antigas
+        // Fallback se tabela não configurada ou zerada: faixas padrão
         if (dist <= 3.3)       freteCalculado = 6000;
         else if (dist <= 4.2)  freteCalculado = 12000;
         else if (dist <= 5.2)  freteCalculado = 18000;
         else if (dist <= 6.2)  freteCalculado = 24000;
         else { const kmExtra = Math.ceil(dist - 6.2); freteCalculado = 24000 + (kmExtra * 3000); }
-        freteMotoboy = freteCalculado; // sem tabela, assume igual ao loja
+        freteMotoboy = freteCalculado;
       }
       
       msg.innerHTML = `<span style="color:#27ae60">✅ Distância: ${dist.toFixed(1)}km - Frete: Gs ${freteCalculado.toLocaleString('es-PY')}</span>`;
