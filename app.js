@@ -1000,8 +1000,8 @@ function _selecionarDivisao(n) {
   if (!p3) return;
   const p = _pizzaConfig.p;
 
-  // Filtra sabores pelo tipo (Salgada/Doce) se definido
-  const saboresFiltrados = (p.sabores || []).filter((s) => !s.tipo || !p.tipos || p.tipos.length <= 1 || true);
+  // Filtra sabores pausados pelo admin
+  const saboresFiltrados = (p.sabores || []).filter((s) => !s.pausado);
 
   // Gera HTML para escolha de cada slot de sabor
   let html = `<section class="pizza-step">
@@ -1026,9 +1026,10 @@ function _selecionarDivisao(n) {
   const tipoLower = (s.tipo || 'Tradicional').toLowerCase();
   // ── badge de tipo ──
   let tipoBadge = '';
-  if (tipoLower === 'especial') tipoBadge = `<span class="pizza-sabor-tipo-badge tipo-especial">⭐ Especial</span>`;
-  else if (tipoLower === 'premium') tipoBadge = `<span class="pizza-sabor-tipo-badge tipo-especial" style="background:#7c3aed">🏆 Premium</span>`;
-  else if (tipoLower === 'doce') tipoBadge = `<span class="pizza-sabor-tipo-badge tipo-doce">🍫 Doce</span>`;
+  if (tipoLower === 'especial')      tipoBadge = `<span class="pizza-sabor-tipo-badge tipo-especial">⭐ Especial</span>`;
+  else if (tipoLower === 'premium')  tipoBadge = `<span class="pizza-sabor-tipo-badge tipo-especial" style="background:#7c3aed">🏆 Premium</span>`;
+  else if (tipoLower === 'doce premium') tipoBadge = `<span class="pizza-sabor-tipo-badge tipo-doce" style="background:#e91e8c">🎂 Doce Premium</span>`;
+  else if (tipoLower === 'doce')     tipoBadge = `<span class="pizza-sabor-tipo-badge tipo-doce">🍫 Doce</span>`;
   // ── ícone (estava faltando!) ──
   const iconHtml = s.img
     ? `<img src="${s.img}" class="pizza-sabor-img" alt="${s.nome}" onerror="this.style.display='none'">`
@@ -1178,7 +1179,7 @@ function _atualizarResumo() {
   const tam = _pizzaConfig.tamanhoSelecionado;
   const precoBase = _calcularBasePizza(tam, saboresOk);
   const precoBorda = _pizzaConfig.bordaConfig?.preco || 0;
-  const tipoLabels = { tradicional: '🍕', especial: '⭐', premium: '🏆', doce: '🍫' };
+  const tipoLabels = { tradicional: '🍕', especial: '⭐', premium: '🏆', doce: '🍫', 'doce premium': '🎂' };
 
   el.style.display = 'block';
   el.innerHTML = `
@@ -1195,9 +1196,10 @@ function _atualizarResumo() {
 
 function _precoPizzaPorTipo(tam, tipo) {
   const t = (tipo || 'Tradicional').toLowerCase();
-  if (t === 'premium'  && tam.preco_premium  > 0) return tam.preco_premium;
-  if (t === 'especial' && tam.preco_especial > 0) return tam.preco_especial;
-  if (t === 'doce'     && tam.preco_doce     > 0) return tam.preco_doce;
+  if (t === 'premium'      && tam.preco_premium      > 0) return tam.preco_premium;
+  if (t === 'especial'     && tam.preco_especial     > 0) return tam.preco_especial;
+  if (t === 'doce premium' && tam.preco_doce_premium > 0) return tam.preco_doce_premium;
+  if (t === 'doce'         && tam.preco_doce         > 0) return tam.preco_doce;
   return tam.preco_tradicional || tam.preco || 0;
 }
 
@@ -1898,6 +1900,9 @@ function verificarPagamento() {
   } else if (pag === 'Transferencia') {
     infoDiv.style.display = 'block';
     infoDiv.innerHTML = `<strong>🏦 Dados para Transferência:</strong><br>${DADOS_ALIAS}<br>${ALIAS_PY}`;
+  } else if (pag === 'QR_PY') {
+    infoDiv.style.display = 'block';
+    infoDiv.innerHTML = `<strong>📲 Pague via QR Paraguai</strong><br><small style="color:#555">Bi-Pago · Wepa · Zimple · Tigo Money · Billetera Personal</small><br><span style="color:#1a7a2e;font-weight:700">Mostre o QR ao operador ou escaneie o QR da loja</span>`;
   } else if (pag === 'Multipagamento') {
     if (boxMulti) {
       boxMulti.style.display = 'block';
@@ -1928,6 +1933,7 @@ const METODOS_PAG = [
   { value: 'Cartao',        label: '💳 Tarjeta' },
   { value: 'Pix',           label: '🟢 Pix (BR)' },
   { value: 'Transferencia', label: '🏦 Alias/Transferencia' },
+  { value: 'QR_PY',         label: '📲 QR Paraguai (Bi-Pago/Wepa)' },
 ];
 
 function _getTotalPedidoAtual() {

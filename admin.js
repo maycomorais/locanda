@@ -1055,7 +1055,7 @@ async function calcularFinanceiro() {
     const pag = (p.forma_pagamento || "").toLowerCase();
 
     if (pag.includes("pix")) totalPix += valorPedido;
-    else if (pag.includes("transfer")) totalTransf += valorPedido;
+    else if (pag.includes("transfer") || pag.includes("qr")) totalTransf += valorPedido;
     else if (pag.includes("cartao") || pag.includes("cartão"))
       totalCartao += valorPedido;
     else if (pag.includes("efetivo") || pag.includes("dinheiro"))
@@ -1065,17 +1065,25 @@ async function calcularFinanceiro() {
       // Usa o frete_motoboy real salvo no pedido (sem fallback hardcoded)
       const freteMoto = p.frete_motoboy || 0;
       custoEntregas += freteMoto;
-      const nomeMoto = p.motoboys?.nome || "Sem Motoboy";
-      if (!motoMap[nomeMoto]) {
-        // Armazena objeto com qtd + frete total real por motoboy
-        motoMap[nomeMoto] = { qtd: 0, freteTotal: 0, semFrete: 0 };
-        // Adiciona combustível 1× por motoboy único no período
-        custoEntregas +=
-          typeof AJUDA_COMBUSTIVEL !== "undefined" ? AJUDA_COMBUSTIVEL : 20000;
+
+      // Só inclui na tabela de motoboys se o pedido tem motoboy ATRIBUÍDO.
+      // Pedidos PDV delivery sem "Enviar Rota" ficam sem motoboy_id —
+      // eles somam ao custo de entregas mas NÃO geram linha "Sem Motoboy"
+      // (que inflava o combustível indevidamente e distorcia os pagamentos).
+      if (p.motoboy_id) {
+        const nomeMoto = p.motoboys?.nome || `Motoboy #${p.motoboy_id}`;
+        if (!motoMap[nomeMoto]) {
+          // Armazena objeto com qtd + frete total real por motoboy
+          motoMap[nomeMoto] = { qtd: 0, freteTotal: 0, semFrete: 0 };
+          // Adiciona combustível 1× por motoboy único no período
+          custoEntregas +=
+            typeof AJUDA_COMBUSTIVEL !== "undefined" ? AJUDA_COMBUSTIVEL : 20000;
+        }
+        motoMap[nomeMoto].qtd++;
+        motoMap[nomeMoto].freteTotal += freteMoto;
+        if (!p.frete_motoboy) motoMap[nomeMoto].semFrete++;
       }
-      motoMap[nomeMoto].qtd++;
-      motoMap[nomeMoto].freteTotal += freteMoto;
-      if (!p.frete_motoboy) motoMap[nomeMoto].semFrete++;
+      // Deliveries sem motoboy: frete somado acima, mas sem linha na tabela.
     }
   });
 
@@ -1746,14 +1754,16 @@ async function enviarRotaZap() {
 
       // LÓGICA DE PAGAMENTO (Restaurada)
       const forma = (p.forma_pagamento || "").toLowerCase();
-      const totalFmt = p.total_geral.toLocaleString("es-PY");
+      const totalGeral = p.total_geral || 0;
+      const totalFmt = totalGeral.toLocaleString("es-PY");
 
       if (
         forma.includes("pix") ||
         forma.includes("transfer") ||
-        forma.includes("alias")
+        forma.includes("alias") ||
+        forma.includes("qr")
       ) {
-        msg += `✅ *PAGO (Pix/Transf)*\n`;
+        msg += `✅ *PAGO (${forma.includes("qr") ? "QR Paraguai" : "Pix/Transf"})*\n`;
       } else if (
         forma.includes("cartao") ||
         forma.includes("credito") ||
@@ -1773,8 +1783,8 @@ async function enviarRotaZap() {
           let valorTroco = parseInt(raw) || 0;
           if (valorTroco > 0 && valorTroco < 1000) valorTroco *= 1000;
 
-          if (valorTroco > p.total_geral) {
-            const devolver = valorTroco - p.total_geral;
+          if (valorTroco > totalGeral) {
+            const devolver = valorTroco - totalGeral;
             msg += `🔄 Troco p/ Gs ${valorTroco.toLocaleString("es-PY")} (Levar Gs ${devolver.toLocaleString("es-PY")})\n`;
           }
         }
@@ -1801,12 +1811,12 @@ async function enviarRotaZap() {
 
   msg += `\n🏍️ *Taxa Total: Gs ${taxaTotal.toLocaleString("es-PY")}*`;
 
-  // Abre WhatsApp
-  const foneDestino = telMoto || ""; // Se tiver numero no cadastro do motoboy
-  window.open(
-    `https://wa.me/${foneDestino}?text=${encodeURIComponent(msg)}`,
-    "_blank",
-  );
+  // Abre WhatsApp (se sem número, abre web.whatsapp.com para copiar manualmente)
+  const foneDestino = telMoto ? telMoto.replace(/\D/g, "") : "";
+  const waUrl = foneDestino
+    ? `https://wa.me/${foneDestino}?text=${encodeURIComponent(msg)}`
+    : `https://web.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+  window.open(waUrl, "_blank");
 
   // Recarrega a tela depois de um tempo para atualizar os status
   setTimeout(() => {
@@ -2048,6 +2058,8 @@ async function salvarProduto(btnEl) {
           0;
         const pDoce =
           parseFloat(row.querySelector('[data-f="preco_doce"]')?.value) || 0;
+        const pDocePrem =
+          parseFloat(row.querySelector('[data-f="preco_doce_premium"]')?.value) || 0;
         const pBordaRow =
           parseFloat(row.querySelector('[data-f="borda_preco"]')?.value) || 0;
         const pBordaEspRow =
@@ -2071,13 +2083,14 @@ async function salvarProduto(btnEl) {
           preco_especial: pEsp,
           preco_premium: pPrem,
           preco_doce: pDoce,
+          preco_doce_premium: pDocePrem || null,
           borda_preco: pBordaRow,
           borda_preco_especial: pBordaEspRow || null,
           borda_preco_premium: pBordaPremRow || null,
           borda_preco_doce: pBordaDoceRow || null,
           max_sabores: maxSabRow,
           preco:
-            Math.min(...[pTrad, pEsp, pDoce].filter((v) => v > 0)) || pTrad,
+            Math.min(...[pTrad, pEsp, pDoce, pDocePrem].filter((v) => v > 0)) || pTrad,
         });
       });
       const sabores = [];
@@ -2087,6 +2100,7 @@ async function salvarProduto(btnEl) {
           desc: row.querySelector('[data-f="sdesc"]')?.value?.trim() || "",
           tipo: row.querySelector('[data-f="stipo"]').value,
           img: row.querySelector('[data-f="simg"]')?.value || "",
+          pausado: row.querySelector('[data-f="spausado"]')?.checked || false,
           preco: 0,
         });
       });
@@ -2523,6 +2537,7 @@ function addPizzaTamanho(dados = {}) {
   const pEsp = dados.preco_especial ?? "";
   const pPrem = dados.preco_premium ?? "";
   const pDoce = dados.preco_doce ?? "";
+  const pDocePrem = dados.preco_doce_premium ?? "";
   const pBorda = dados.borda_preco ?? "";
   const maxSab = dados.max_sabores ?? "";
 
@@ -2541,6 +2556,7 @@ function addPizzaTamanho(dados = {}) {
       <div><label>⭐ Especial (Gs)</label><input data-f="preco_especial" type="number" class="form-control" value="${pEsp}" placeholder="65000"></div>
       <div><label>🏆 Premium (Gs)</label><input data-f="preco_premium" type="number" class="form-control" value="${pPrem}" placeholder="65000"></div>
       <div><label>🍫 Doce (Gs)</label><input data-f="preco_doce" type="number" class="form-control" value="${pDoce}" placeholder="60000"></div>
+      <div><label>🎂 Doce Premium (Gs)</label><input data-f="preco_doce_premium" type="number" class="form-control" value="${pDocePrem}" placeholder="70000"></div>
     </div>
     <div class="pizza-tamanho-precos" style="margin-top:6px;padding-top:8px;border-top:1px dashed #e0e0e0">
       <div><label>🧀 Borda Trad. (Gs)</label><input data-f="borda_preco" type="number" class="form-control" value="${pBorda}" placeholder="10000"></div>
@@ -2593,7 +2609,12 @@ function addPizzaSabor(dados = {}) {
         <option value="Especial" ${dados.tipo === "Especial" ? "selected" : ""}>⭐ Especial</option>
         <option value="Premium" ${dados.tipo === "Premium" ? "selected" : ""}>🏆 Premium</option>
         <option value="Doce" ${dados.tipo === "Doce" ? "selected" : ""}>🍫 Doce</option>
+        <option value="Doce Premium" ${dados.tipo === "Doce Premium" ? "selected" : ""}>🎂 Doce Premium</option>
       </select>
+      <label title="Pausar temporariamente este sabor" style="display:flex;align-items:center;gap:5px;font-size:0.8rem;cursor:pointer;white-space:nowrap;padding:6px 10px;border:1.5px solid ${dados.pausado ? '#f0a500' : '#e0e0e0'};border-radius:8px;background:${dados.pausado ? '#fff8e6' : '#fff'}">
+        <input data-f="spausado" type="checkbox" ${dados.pausado ? "checked" : ""} style="accent-color:#f0a500;width:15px;height:15px" onchange="this.closest('label').style.background=this.checked?'#fff8e6':'#fff';this.closest('label').style.borderColor=this.checked?'#f0a500':'#e0e0e0'">
+        ⏸ Pausar
+      </label>
       <button class="btn btn-sm btn-danger" onclick="this.closest('.pizza-sabor-row').remove()" title="Remover">✕</button>
     </div>
     <textarea data-f="sdesc" class="form-control pizza-sabor-desc-input" rows="2" placeholder="Descrição do sabor">${dados.desc || ""}</textarea>
@@ -5431,9 +5452,10 @@ function _pdvModalQtd(delta) {
 
 function _precoPizzaPorTipo(tam, tipo) {
   const t = (tipo || "Tradicional").toLowerCase();
-  if (t === "premium" && tam.preco_premium > 0) return tam.preco_premium;
-  if (t === "especial" && tam.preco_especial > 0) return tam.preco_especial;
-  if (t === "doce" && tam.preco_doce > 0) return tam.preco_doce;
+  if (t === "premium"      && tam.preco_premium      > 0) return tam.preco_premium;
+  if (t === "especial"     && tam.preco_especial     > 0) return tam.preco_especial;
+  if (t === "doce premium" && tam.preco_doce_premium > 0) return tam.preco_doce_premium;
+  if (t === "doce"         && tam.preco_doce         > 0) return tam.preco_doce;
   return tam.preco_tradicional || tam.preco || 0;
 }
 
@@ -5598,7 +5620,7 @@ function _pdvPizzaPasso3(n) {
     html +=
       n > 1 ? `<div class="pdvc-slot-header">${slot + 1}º sabor</div>` : "";
     html += `<div class="pdvc-sabores-grid" id="pdvc-slot-${slot}">`;
-    (p.sabores || []).forEach((s) => {
+    (p.sabores || []).filter((s) => !s.pausado).forEach((s) => {
       const sfEsc = (s.nome || "").replace(/'/g, "\\'");
       const tipoLower = (s.tipo || "Tradicional").toLowerCase();
       let badge = "";
@@ -5606,6 +5628,8 @@ function _pdvPizzaPasso3(n) {
         badge = `<span style="background:#f59e0b;color:#fff;font-size:0.68rem;font-weight:700;border-radius:10px;padding:2px 6px;white-space:nowrap">⭐ Especial</span>`;
       else if (tipoLower === "premium")
         badge = `<span style="background:#7c3aed;color:#fff;font-size:0.68rem;font-weight:700;border-radius:10px;padding:2px 6px;white-space:nowrap">🏆 Premium</span>`;
+      else if (tipoLower === "doce premium")
+        badge = `<span style="background:#e91e8c;color:#fff;font-size:0.68rem;font-weight:700;border-radius:10px;padding:2px 6px;white-space:nowrap">🎂 Doce Premium</span>`;
       else if (tipoLower === "doce")
         badge = `<span style="background:#ec4899;color:#fff;font-size:0.68rem;font-weight:700;border-radius:10px;padding:2px 6px;white-space:nowrap">🍫 Doce</span>`;
       const tam = _pdvModalState.pizza.tamanhoSelecionado;
@@ -6305,6 +6329,9 @@ function atualizarInfoPagPDV(total) {
     const valorReais = Math.ceil(total / _cotacaoPDV);
     infoBox.style.display = "block";
     infoBox.innerHTML = `<i class="fas fa-qrcode"></i> <strong>Cobrar em Pix: R$ ${valorReais}</strong>`;
+  } else if (pag === "QR_PY") {
+    infoBox.style.display = "block";
+    infoBox.innerHTML = `<i class="fas fa-qrcode"></i> <strong>📲 QR Paraguai</strong> — Bi-Pago · Wepa · Zimple · Tigo Money<br><span style="color:#1a7a2e;font-weight:700">Gs ${total.toLocaleString("es-PY")}</span>`;
   } else if (pag === "Multipagamento") {
     if (selectPag) selectPag.style.display = "none";
     if (boxMultiPDV) {
@@ -6346,6 +6373,7 @@ function adicionarPartePagamentoPDV() {
     { v: "Cartao", l: "💳 Tarjeta" },
     { v: "Pix", l: "🟢 Pix" },
     { v: "Transferencia", l: "🏦 Alias" },
+    { v: "QR_PY", l: "📲 QR Paraguai" },
   ]
     .map((m) => `<option value="${m.v}">${m.l}</option>`)
     .join("");
@@ -7618,7 +7646,7 @@ async function baixarTodasMesas() {
         status: "entregue",
         tempo_entregue: agora_iso,
         entrega_confirmada_em: agora_iso,
-        confirmacao_tipo: "baixa_lote",
+        confirmacao_tipo: "funcionario", // "baixa_lote" viola o CHECK constraint do banco
       })
       .eq("id", p.id);
     if (err) { console.error(`Erro mesa #${p.id}:`, err.message); erros++; }
