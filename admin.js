@@ -2142,6 +2142,20 @@ async function salvarProduto(btnEl) {
       configFinal.extras = extras;
     }
 
+    // ── COMBO FECHADO ─────────────────────────────────────────────
+    if (tipo === "combo_fechado") {
+      const cfg = cfLerConfigBuilder();
+      if (!cfg.limite_total || cfg.limite_total < 1) {
+        alert("⚠️ Informe o limite total de itens do combo.");
+        return;
+      }
+      if (cfg.sabores.length === 0) {
+        alert("⚠️ Adicione ao menos 1 sabor ao Combo Fechado.");
+        return;
+      }
+      configFinal = cfg;
+    }
+
     // Opções de Preparo
     const temPreparo = document.getElementById("prod-tem-preparo")?.checked;
     if (temPreparo) {
@@ -2239,6 +2253,11 @@ async function abrirModalProduto(produto = null, tipoInicial = null) {
     '<p style="color:#aaa;font-size:0.82rem;text-align:center;margin:10px 0">Clique em "+ Sabor" para adicionar</p>';
   const variacoesLista = document.getElementById("variacoes-lista");
   if (variacoesLista) variacoesLista.innerHTML = "";
+  // Reset Combo Fechado
+  const cfLista = document.getElementById("cf-sabores-lista");
+  if (cfLista) cfLista.innerHTML = "";
+  const cfLimiteEl = document.getElementById("cf-limite");
+  if (cfLimiteEl) cfLimiteEl.value = "";
   // CORREÇÃO: Limpa o file input para não reutilizar imagem anterior
   const fileInputReset = document.getElementById("prod-img-file");
   if (fileInputReset) fileInputReset.value = "";
@@ -2306,6 +2325,10 @@ async function abrirModalProduto(produto = null, tipoInicial = null) {
         document.getElementById("variacoes-lista").innerHTML = "";
         cfg.variacoes.forEach((v) => addVariacao(v));
       }
+      // ── COMBO FECHADO ──────────────────────────────────────────
+      if (tipo === "combo_fechado") {
+        cfCarregarNoBuilder(cfg);
+      }
       // Extras
       if (cfg.extras && cfg.extras.length > 0) {
         document.getElementById("prod-tem-extras").checked = true;
@@ -2367,6 +2390,7 @@ const BUILDER_MAP = {
   shake: "builder-shake",
   suco: "builder-montavel",
   variacoes: "builder-variacoes",
+  combo_fechado: "builder-combo-fechado",
 };
 const BUILDER_HINTS = {
   acai: '🍇 Crie etapas: "Tamanho", "Complementos", "Frutas", "Coberturas".',
@@ -2387,6 +2411,7 @@ const _TIPO_BADGE_LABELS = {
   almoco: "🍽️ Prato",
   combo: "⭐ Combo",
   variacoes: "🎨 Variações",
+  combo_fechado: "📦 Combo Fechado",
 };
 
 function selecionarTipoBuilder(tipo) {
@@ -7659,4 +7684,59 @@ async function baixarTodasMesas() {
   }
   carregarPedidos();
   carregarMonitorMesas();
+}
+// ══════════════════════════════════════════════════════════════
+//  COMBO FECHADO — builder admin
+// ══════════════════════════════════════════════════════════════
+
+function cfAdicionarSabor(nome = "") {
+  const lista = document.getElementById("cf-sabores-lista");
+  if (!lista) return;
+  const id = "cf-s-" + Date.now() + Math.random().toString(36).slice(2, 6);
+  const row = document.createElement("div");
+  row.className = "cf-sabor-row";
+  row.dataset.cfId = id;
+  row.innerHTML = `
+    <input type="text" placeholder="Ex: Frango, Queijo, Carne…"
+           value="${nome.replace(/"/g, "&quot;")}"
+           oninput="cfAtualizarPreview()"
+           style="flex:1;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:0.88rem;outline:none">
+    <button type="button" class="cf-remove-sabor" title="Remover sabor"
+            onclick="cfRemoverSabor('${id}')" style="flex-shrink:0;background:none;border:none;color:#dc2626;font-size:1.1rem;cursor:pointer;padding:2px 6px;">×</button>
+  `;
+  lista.appendChild(row);
+  row.querySelector("input").focus();
+  cfAtualizarPreview();
+}
+
+function cfRemoverSabor(id) {
+  const el = document.querySelector(`[data-cf-id="${id}"]`);
+  if (el) el.remove();
+  cfAtualizarPreview();
+}
+
+function cfAtualizarPreview() {
+  const preview = document.getElementById("cf-json-preview");
+  if (!preview) return;
+  preview.textContent = JSON.stringify(cfLerConfigBuilder(), null, 2);
+}
+
+function cfLerConfigBuilder() {
+  const limite = parseInt(document.getElementById("cf-limite")?.value) || 0;
+  const sabores = [];
+  document.querySelectorAll("#cf-sabores-lista .cf-sabor-row").forEach((row) => {
+    const nome = row.querySelector("input")?.value?.trim();
+    if (nome) sabores.push({ id: row.dataset.cfId, nome });
+  });
+  return { __tipo: "combo_fechado", limite_total: limite, sabores };
+}
+
+function cfCarregarNoBuilder(cfg) {
+  if (!cfg || cfg.__tipo !== "combo_fechado") return;
+  const limiteEl = document.getElementById("cf-limite");
+  if (limiteEl) limiteEl.value = cfg.limite_total || "";
+  const lista = document.getElementById("cf-sabores-lista");
+  if (lista) lista.innerHTML = "";
+  (cfg.sabores || []).forEach((s) => cfAdicionarSabor(s.nome));
+  cfAtualizarPreview();
 }

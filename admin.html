@@ -658,6 +658,7 @@
           <button class="tipo-btn" onclick="criarNovoProduto('montavel')"><i class="fas fa-layer-group"></i><span>Montável</span><small>Poke, salada</small></button>
           <button class="tipo-btn" onclick="criarNovoProduto('combo')"><i class="fas fa-star"></i><span>Combo</span><small>Kit / promoção</small></button>
           <button class="tipo-btn" onclick="criarNovoProduto('variacoes')" style="border-color:#8b5cf6"><i class="fas fa-palette" style="color:#8b5cf6"></i><span>Variações</span><small>Sabores c/ preço</small></button>
+          <button class="tipo-btn" onclick="criarNovoProduto('combo_fechado')" style="border-color:#d97706"><i class="fas fa-box-open" style="color:#d97706"></i><span>Combo Fechado</span><small>Caixa c/ qtd. fixa</small></button>
         </div>
       </div>
 
@@ -1049,6 +1050,9 @@
             <button type="button" class="builder-type-btn" data-tipo="variacoes" onclick="selecionarTipoBuilder('variacoes')">
               <i class="fas fa-palette"></i><strong>Variações</strong>
             </button>
+            <button type="button" class="builder-type-btn" data-tipo="combo_fechado" onclick="selecionarTipoBuilder('combo_fechado')" style="border-color:#d97706">
+              <i class="fas fa-box-open" style="color:#d97706"></i><strong>Combo Fechado</strong>
+            </button>
           </div>
         </div>
         <div id="builder-tipo-hint" style="display:none"></div>
@@ -1175,6 +1179,32 @@
               <p style="color:#aaa; font-size:0.82rem; text-align:center; margin:10px 0">Clique em "+ Sabor" para adicionar</p>
             </div>
           </div>
+        </div>
+
+        <!-- ── COMBO FECHADO ─────────────────────────────────── -->
+        <div id="builder-combo-fechado" class="builder-section" style="display:none">
+          <h4 style="color:#d97706;margin-bottom:6px">📦 Combo Fechado</h4>
+          <div style="background:#fffbeb;border-left:4px solid #f59e0b;border-radius:6px;padding:10px 14px;font-size:0.82rem;color:#78350f;margin-bottom:14px;line-height:1.5">
+            O cliente distribui os itens entre os sabores até atingir o limite total.
+            Ex: <em>"Caixa com 9 Esfihas"</em> → Frango 3 + Queijo 1 + Carne 1 + Chocolate 4 = 9.
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label" style="font-weight:700">🔢 Limite total de itens (quantidade fixa da caixa)</label>
+            <input type="number" id="cf-limite" class="form-control" min="1" step="1" placeholder="Ex: 9"
+                   oninput="cfAtualizarPreview()"
+                   style="max-width:140px;font-size:1.1rem;font-weight:700;border:2px solid #d97706">
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <label class="form-label" style="font-weight:700;margin:0">🧂 Sabores disponíveis</label>
+            <button type="button" class="btn btn-sm"
+                    style="background:#d97706;color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:0.82rem;cursor:pointer"
+                    onclick="cfAdicionarSabor()">+ Adicionar Sabor</button>
+          </div>
+          <div id="cf-sabores-lista" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+          <details style="margin-top:10px">
+            <summary style="font-size:0.78rem;color:#94a3b8;cursor:pointer">Ver JSON gerado (debug)</summary>
+            <pre id="cf-json-preview" style="background:#1e293b;color:#7dd3fc;border-radius:6px;padding:10px;font-size:0.74rem;margin-top:6px;overflow-x:auto;white-space:pre-wrap"></pre>
+          </details>
         </div>
 
         <hr class="modal-divisor"/>
