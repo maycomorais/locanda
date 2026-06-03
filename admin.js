@@ -5351,7 +5351,8 @@ function adicionarItemPDV(p) {
     tipo === "pizza" ||
     tipo === "shake" ||
     tipo === "montavel" ||
-    tipo === "almoco"
+    tipo === "almoco" ||
+    tipo === "combo_fechado"
   ) {
     _mostrarModalComplexoPDV(p, tipo, cfg);
     return;
@@ -5388,6 +5389,7 @@ function _mostrarModalComplexoPDV(produto, tipo, cfg) {
     shake: { tamanhoSelecionado: null, saborSelecionado: null },
     montavel: {},
     almoco: null,
+    comboFechado: {},
     qtd: 1,
   };
 
@@ -5417,6 +5419,7 @@ function _mostrarModalComplexoPDV(produto, tipo, cfg) {
   else if (tipo === "shake") _pdvRenderShake(body);
   else if (tipo === "montavel") _pdvRenderMontavel(body);
   else if (tipo === "almoco") _pdvRenderAlmoco(body);
+  else if (tipo === "combo_fechado") _pdvRenderComboFechado(body);
 
   // Adicionais do produto
   const extrasProds =
@@ -5465,6 +5468,7 @@ function _pdvTipoLabel(tipo) {
     shake: "🥤 Escolha tamanho e sabor",
     montavel: "🛠️ Monte seu pedido",
     almoco: "🍽️ Escolha o prato",
+    combo_fechado: "📦 Distribua os itens entre os sabores",
   };
   return labels[tipo] || "";
 }
@@ -5903,6 +5907,146 @@ function _pdvRenderAlmoco(container) {
   container.appendChild(sec);
 }
 
+// ── Combo Fechado ──────────────────────────────────────────────────────────────
+function _pdvRenderComboFechado(container) {
+  const cfg = _pdvModalState.cfg;
+  const limite = cfg && cfg.limite_total ? cfg.limite_total : 0;
+  const sabores = cfg && Array.isArray(cfg.sabores) ? cfg.sabores : [];
+
+  // Inicializa estado: { saborId: quantidade }
+  _pdvModalState.comboFechado = {};
+  sabores.forEach((s) => {
+    _pdvModalState.comboFechado[s.id || s.nome] = 0;
+  });
+
+  if (sabores.length === 0) {
+    container.innerHTML =
+      '<p style="color:#aaa;font-size:0.9rem">Nenhum sabor configurado para este combo.</p>';
+    return;
+  }
+
+  const sec = document.createElement("div");
+  sec.className = "pdvc-step";
+
+  // Barra de progresso / contador
+  const barraWrap = document.createElement("div");
+  barraWrap.id = "pdvc-cf-barra-wrap";
+  barraWrap.style.cssText =
+    "margin-bottom:14px;padding:10px 14px;background:#f8f8f8;border-radius:10px;border:1.5px solid #e5e7eb;text-align:center;font-size:0.88rem;color:#555;font-weight:600";
+  barraWrap.innerHTML = `<span id="pdvc-cf-total">0</span> / ${limite} selecionados`;
+  sec.appendChild(barraWrap);
+
+  // Título
+  const title = document.createElement("div");
+  title.className = "pdvc-step-title";
+  title.innerHTML = `<span class="pdvc-step-num">1</span> Distribua ${limite} ${limite === 1 ? "item" : "itens"} entre os sabores`;
+  sec.insertBefore(title, barraWrap);
+
+  // Lista de sabores com spinner
+  sabores.forEach((s) => {
+    const sId = s.id || s.nome;
+    const row = document.createElement("div");
+    row.style.cssText =
+      "display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f0f0f0";
+
+    const nome = document.createElement("span");
+    nome.textContent = s.nome;
+    nome.style.cssText = "font-size:0.92rem;color:#333;font-weight:500;flex:1";
+
+    const ctrl = document.createElement("div");
+    ctrl.style.cssText = "display:flex;align-items:center;gap:0";
+
+    const btnMinus = document.createElement("button");
+    btnMinus.type = "button";
+    btnMinus.textContent = "−";
+    btnMinus.style.cssText =
+      "width:34px;height:34px;border-radius:8px 0 0 8px;border:1.5px solid #ddd;border-right:none;background:#fff;font-size:1.1rem;cursor:pointer;color:#555;font-weight:700;transition:background .15s";
+    btnMinus.onmouseenter = () => (btnMinus.style.background = "#f5f5f5");
+    btnMinus.onmouseleave = () => (btnMinus.style.background = "#fff");
+
+    const qty = document.createElement("span");
+    qty.id = `pdvc-cf-qty-${sId}`;
+    qty.textContent = "0";
+    qty.style.cssText =
+      "min-width:36px;height:34px;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid #ddd;border-left:none;border-right:none;font-weight:700;font-size:0.95rem;color:#222;background:#fff";
+
+    const btnPlus = document.createElement("button");
+    btnPlus.type = "button";
+    btnPlus.textContent = "+";
+    btnPlus.style.cssText =
+      "width:34px;height:34px;border-radius:0 8px 8px 0;border:1.5px solid #ddd;border-left:none;background:#fff;font-size:1.1rem;cursor:pointer;color:var(--primary);font-weight:700;transition:background .15s";
+    btnPlus.onmouseenter = () => (btnPlus.style.background = "#f5f5f5");
+    btnPlus.onmouseleave = () => (btnPlus.style.background = "#fff");
+
+    const _atualizarBarra = () => {
+      const total = Object.values(_pdvModalState.comboFechado).reduce(
+        (a, b) => a + b,
+        0
+      );
+      const el = document.getElementById("pdvc-cf-total");
+      if (el) el.textContent = total;
+      const wrap = document.getElementById("pdvc-cf-barra-wrap");
+      if (wrap) {
+        if (total === limite) {
+          wrap.style.borderColor = "var(--primary)";
+          wrap.style.color = "var(--primary)";
+          wrap.style.background = "#f0fdf4";
+        } else if (total > limite) {
+          wrap.style.borderColor = "#dc2626";
+          wrap.style.color = "#dc2626";
+          wrap.style.background = "#fef2f2";
+        } else {
+          wrap.style.borderColor = "#e5e7eb";
+          wrap.style.color = "#555";
+          wrap.style.background = "#f8f8f8";
+        }
+      }
+    };
+
+    btnMinus.onclick = () => {
+      const cur = _pdvModalState.comboFechado[sId] || 0;
+      if (cur <= 0) return;
+      _pdvModalState.comboFechado[sId] = cur - 1;
+      qty.textContent = cur - 1;
+      _atualizarBarra();
+    };
+
+    btnPlus.onclick = () => {
+      const cur = _pdvModalState.comboFechado[sId] || 0;
+      const total = Object.values(_pdvModalState.comboFechado).reduce(
+        (a, b) => a + b,
+        0
+      );
+      if (limite > 0 && total >= limite) {
+        const wrap = document.getElementById("pdvc-cf-barra-wrap");
+        if (wrap) {
+          wrap.style.borderColor = "#dc2626";
+          wrap.style.color = "#dc2626";
+          wrap.style.background = "#fef2f2";
+          setTimeout(() => {
+            wrap.style.borderColor = "var(--primary)";
+            wrap.style.color = "var(--primary)";
+            wrap.style.background = "#f0fdf4";
+          }, 800);
+        }
+        return;
+      }
+      _pdvModalState.comboFechado[sId] = cur + 1;
+      qty.textContent = cur + 1;
+      _atualizarBarra();
+    };
+
+    ctrl.appendChild(btnMinus);
+    ctrl.appendChild(qty);
+    ctrl.appendChild(btnPlus);
+    row.appendChild(nome);
+    row.appendChild(ctrl);
+    sec.appendChild(row);
+  });
+
+  container.appendChild(sec);
+}
+
 // ── Extras do produto ──────────────────────────────────────────────────────────
 function _pdvRenderExtras(container, extras) {
   const sec = document.createElement("div");
@@ -6013,9 +6157,28 @@ function _pdvModalConfirmar() {
     variacao = st.almoco.nome;
     preco = st.almoco.preco || p.preco || 0;
     if (st.almoco.desc) montagem.push(st.almoco.desc);
+  } else if (st.tipo === "combo_fechado") {
+    const cfg = st.cfg;
+    const limite = cfg && cfg.limite_total ? cfg.limite_total : 0;
+    const total = Object.values(st.comboFechado || {}).reduce((a, b) => a + b, 0);
+    if (limite > 0 && total !== limite) {
+      alert(`Distribua exatamente ${limite} ${limite === 1 ? "item" : "itens"} entre os sabores! (selecionado: ${total})`);
+      return;
+    }
+    if (total === 0) {
+      alert("Selecione ao menos 1 sabor!");
+      return;
+    }
+    const saboresNomes = (cfg.sabores || [])
+      .filter((s) => (st.comboFechado[s.id || s.nome] || 0) > 0)
+      .map((s) => {
+        const qtdS = st.comboFechado[s.id || s.nome];
+        return qtdS > 1 ? `${s.nome} (x${qtdS})` : s.nome;
+      });
+    montagem = saboresNomes;
+    variacao = saboresNomes.join(" | ");
+    preco = p.preco || 0;
   }
-
-  // Extras marcados
   const extrasEscolhidos = [];
   document
     .querySelectorAll("#pdv-complex-modal .pdvc-extra-check:checked")
